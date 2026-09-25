@@ -251,6 +251,21 @@ defmodule Faction.Relation do
         JOIN callbacks c ON c.behaviour = b.behaviour
         JOIN functions f ON f.module = b.module AND f.function = c.function AND f.arity = c.arity
         """
+      },
+      %{
+        name: :test_modules,
+        comment:
+          "Test code: ExUnit test modules (those that define __ex_unit__/0) and the other modules defined in their files, such as stubs. Empty unless test BEAMs, compiled with guides/compile_tests.exs, were passed as an ebin directory. Derived from modules and functions.",
+        columns: [
+          {:module,
+           "Test module; joins functions.module and function_calls.caller_module. Its tests are functions named \"test <describe> <name>\" with arity 1."}
+        ],
+        sql: """
+        SELECT m.module FROM modules m
+        WHERE m.path IN (
+          SELECT t.path FROM modules t JOIN functions f ON f.module = t.module
+          WHERE f.function = '__ex_unit__' AND f.arity = 0)
+        """
       }
     ]
   end
