@@ -4,10 +4,11 @@ defmodule Faction.Ecto do
   `__schema__/1` and `__schema__/2` in a module's debug info.
 
   Nothing is loaded or evaluated: clause bodies are decoded only when they are
-  literals (atoms, numbers, strings, lists, tuples, maps and structs).
+  literals (see `Faction.Literal`).
   """
 
   alias Faction.Beam
+  alias Faction.Literal
 
   @typedoc "Rows keyed by relation name."
   @type rows() :: %{ecto_schemas: list(map()), ecto_fields: list(map()), ecto_assocs: list(map())}
@@ -123,7 +124,7 @@ defmodule Faction.Ecto do
   defp decode(clauses, key, default) do
     case Map.fetch(clauses, key) do
       {:ok, ast} ->
-        case literal(ast) do
+        case Literal.literal(ast) do
           {:ok, value} -> value
           :error -> default
         end
@@ -131,41 +132,5 @@ defmodule Faction.Ecto do
       :error ->
         default
     end
-  end
-
-  @doc false
-  @spec literal(ast :: Macro.t()) :: {:ok, term()} | :error
-  def literal(ast) when is_atom(ast) or is_number(ast) or is_binary(ast), do: {:ok, ast}
-  def literal(list) when is_list(list), do: literal_list(list)
-
-  def literal({left, right}) do
-    with {:ok, left} <- literal(left), {:ok, right} <- literal(right), do: {:ok, {left, right}}
-  end
-
-  def literal({:{}, _meta, elements}) when is_list(elements) do
-    with {:ok, elements} <- literal_list(elements), do: {:ok, List.to_tuple(elements)}
-  end
-
-  def literal({:%{}, _meta, pairs}) when is_list(pairs) do
-    with {:ok, pairs} <- literal_list(pairs), do: {:ok, Map.new(pairs)}
-  end
-
-  def literal({:%, _meta, [struct, {:%{}, _map_meta, _pairs} = map]}) when is_atom(struct) do
-    with {:ok, map} <- literal(map), do: {:ok, Map.put(map, :__struct__, struct)}
-  end
-
-  def literal(_ast), do: :error
-
-  @spec literal_list(list :: list(Macro.t())) :: {:ok, list(term())} | :error
-  defp literal_list(list) do
-    decoded =
-      Enum.reduce_while(list, {:ok, []}, fn element, {:ok, acc} ->
-        case literal(element) do
-          {:ok, value} -> {:cont, {:ok, [value | acc]}}
-          :error -> {:halt, :error}
-        end
-      end)
-
-    with {:ok, acc} <- decoded, do: {:ok, Enum.reverse(acc)}
   end
 end

@@ -87,5 +87,6 @@
 {"caller_module":"MyAppWeb.OrderController","caller_function":"controller?","caller_arity":0,"callee_module":"MyApp.Repo","callee_function":"all","callee_arity":1,"kind":"call","path":"lib/my_app_web.ex","line":6}
 {"caller_module":"MyAppWeb.OrderController","caller_function":"index","caller_arity":2,"callee_module":"MyApp.Orders","callee_function":"list_orders","callee_arity":1,"kind":"call","path":"lib/my_app_web/order_controller.ex","line":4}
 {"caller_module":"MyAppWeb.OrderController","caller_function":"index","caller_arity":2,"callee_module":"Phoenix.Controller","callee_function":"render","callee_arity":3,"kind":"call","path":"lib/my_app_web/order_controller.ex","line":5}
+{"caller_module":"MyAppWeb.Router","caller_function":"__routes__","caller_arity":0,"callee_module":"MyAppWeb.Components","callee_function":"button","callee_arity":1,"kind":"capture","path":"lib/my_app_web/router.ex","line":1}
 {"caller_module":"MyAppWeb","caller_function":"MACRO-__using__","caller_arity":2,"callee_module":"erlang","callee_function":"is_atom","callee_arity":1,"kind":"call","path":"lib/my_app_web.ex","line":10}
 {"caller_module":"MyAppWeb","caller_function":"controller","caller_arity":0,"callee_module":"elixir_quote","callee_function":"validate_quote","callee_arity":1,"kind":"call","path":"lib/my_app_web.ex","line":3}

@@ -59,7 +59,10 @@ defmodule Faction.Extract do
     {function_calls, dynamic_function_calls, module_references} =
       Calls.rows(beam, &locate(&1, &2, &3, path, beam, root))
 
-    Map.merge(Faction.Ecto.rows(beam), %{
+    beam
+    |> Faction.Ecto.rows()
+    |> Map.merge(Faction.Phoenix.rows(beam))
+    |> Map.merge(%{
       modules: [module_row],
       functions: function_rows(beam, module, path, source),
       function_calls: function_calls,

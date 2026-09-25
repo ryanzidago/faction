@@ -181,6 +181,24 @@ defmodule Faction.Relation do
           {:related_module, "VARCHAR",
            "Associated or embedded schema; joins ecto_schemas.module. NULL for through associations, which name a path instead."}
         ]
+      },
+      %__MODULE__{
+        name: :routes,
+        comment:
+          "One row per route of each Phoenix router in the application, in declaration order, read from the router's __routes__/0. " <>
+            "A controller action a route reaches is the function (module, action, 2). Routes carry no source line; the router's file is modules.path.",
+        columns: [
+          {:router, "VARCHAR NOT NULL", "Router module; joins modules.module."},
+          {:verb, "VARCHAR NOT NULL",
+           "HTTP verb in upper case, e.g. GET, POST; * for forward and match :*."},
+          {:route, "VARCHAR NOT NULL", "Path pattern with its scope prefix, e.g. /episodes/:id."},
+          {:kind, "VARCHAR NOT NULL",
+           "live for a LiveView route (live), forward for forward, plug for every other route, including controller routes."},
+          {:module, "VARCHAR NOT NULL",
+           "Module the route dispatches to: the LiveView for live routes, otherwise the plug, e.g. the controller. Joins functions.module for application modules."},
+          {:action, "VARCHAR",
+           "Controller action or live action, e.g. show; for a controller it joins functions.function with arity 2. NULL when the plug options are not an atom, e.g. forwards."}
+        ]
       }
     ]
   end

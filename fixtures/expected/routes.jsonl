@@ -1,0 +1,3 @@
+{"router":"MyAppWeb.Router","verb":"GET","route":"/orders","kind":"plug","module":"MyAppWeb.OrderController","action":"index"}
+{"router":"MyAppWeb.Router","verb":"GET","route":"/dashboard","kind":"live","module":"MyAppWeb.DashboardLive","action":"index"}
+{"router":"MyAppWeb.Router","verb":"*","route":"/admin","kind":"forward","module":"MyAppWeb.AdminPlug","action":null}

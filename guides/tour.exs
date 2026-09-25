@@ -86,7 +86,7 @@ defmodule Faction.Tour do
 
     check!(
       "every fixture BEAM was extracted, none skipped",
-      summary.beams == 20 and summary.skipped == []
+      summary.beams == 21 and summary.skipped == []
     )
 
     check!("every declared behaviour resolved to a BEAM", summary.missing_behaviours == [])
@@ -125,6 +125,7 @@ defmodule Faction.Tour do
     ecto_schemas: "SELECT * FROM ecto_schemas ORDER BY module",
     ecto_fields: "SELECT * FROM ecto_fields WHERE module = 'MyApp.Orders.Line'",
     ecto_assocs: "SELECT * FROM ecto_assocs WHERE module = 'MyApp.Orders.Order'",
+    routes: "SELECT * FROM routes WHERE router = 'MyAppWeb.Router'",
     external_functions:
       "SELECT * FROM external_functions WHERE module IN ('Phoenix.Controller', 'String') ORDER BY ALL",
     callback_impls: "SELECT * FROM callback_impls WHERE behaviour <> 'GenServer' ORDER BY ALL"
@@ -291,13 +292,28 @@ defmodule Faction.Tour do
 
     ask!(
       out,
-      "Which declared public functions does nothing call? (one row per definition; callback implementations and macros excluded; a candidate list, not a verdict)",
+      "Which routes reach MyAppWeb.OrderController.index/2? (a controller action is (module, action, 2))",
+      """
+      SELECT r.verb, r.route, r.router FROM routes r
+      JOIN functions f ON f.module = r.module AND f.function = r.action AND f.arity = 2
+      WHERE f.module = 'MyAppWeb.OrderController' AND f.function = 'index'
+      """,
+      [
+        %{"verb" => "GET", "route" => "/orders", "router" => "MyAppWeb.Router"}
+      ]
+    )
+
+    ask!(
+      out,
+      "Which declared public functions does nothing call? (one row per definition; callback implementations, routed actions and macros excluded; a candidate list, not a verdict)",
       """
       WITH arities AS (
         SELECT f.module, f.function, f.arity, f.start_line FROM functions f
         WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
           AND NOT EXISTS (SELECT 1 FROM callback_impls i
             WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
+          AND NOT EXISTS (SELECT 1 FROM routes r
+            WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)
           AND f.module IN ('MyApp.Orders', 'MyApp.Repo', 'MyAppWeb.OrderController', 'MyApp.Workers.Mailer', 'MyApp.Shapes')),
       used AS (
         SELECT DISTINCT a.module, a.function, a.start_line FROM arities a
@@ -311,14 +327,13 @@ defmodule Faction.Tour do
       GROUP BY a.module, a.function, a.start_line ORDER BY ALL
       """,
       [
-        %{"module" => "MyApp.Shapes", "function" => "area", "arities" => [1, 2]},
-        %{"module" => "MyAppWeb.OrderController", "function" => "index", "arities" => [2]}
+        %{"module" => "MyApp.Shapes", "function" => "area", "arities" => [1, 2]}
       ]
     )
 
     say(
       "area/1 only calls area/2 (its default argument), so the definition counts once and neither arity has a real caller.\n" <>
-        "index/2 is a Phoenix action: the router calls it at runtime, which is why it is a candidate only.\n"
+        "OrderController.index/2 has no caller either, but a route reaches it, so it is not listed.\n"
     )
 
     ask!(

@@ -18,6 +18,7 @@ Questions it must answer exactly:
 - Which public functions are never called?
 - Which modules implement this behaviour, and which functions are its callbacks?
 - What Ecto schemas exist, with which fields and associations?
+- Which routes reach this controller action?
 - Where is this function defined (file and lines)?
 
 Out of scope for now: runtime traces, test execution data, and any judgement
@@ -129,6 +130,7 @@ out/
   ecto_schemas.jsonl
   ecto_fields.jsonl
   ecto_assocs.jsonl
+  routes.jsonl
   schema.sql   (loads the JSONL into faction.duckdb; defines the views
                 external_functions, callback_impls and faction_columns)
 ```
@@ -329,6 +331,22 @@ Schema facts are decoded from the literal clauses of `__schema__/1,2` in the
 debug info; nothing is evaluated. Through associations have NULL
 `related_module` (they name a path, not a schema).
 
+### Phoenix routes
+
+```json
+// routes.jsonl: one row per route, in declaration order
+{"router":"MyAppWeb.Router","verb":"GET","route":"/orders","kind":"plug","module":"MyAppWeb.OrderController","action":"index"}
+{"router":"MyAppWeb.Router","verb":"GET","route":"/dashboard","kind":"live","module":"MyAppWeb.DashboardLive","action":"index"}
+{"router":"MyAppWeb.Router","verb":"*","route":"/admin","kind":"forward","module":"MyAppWeb.AdminPlug","action":null}
+```
+
+Routes are decoded field by field from the literal list a router's
+`__routes__/0` returns; nothing is evaluated. The router calls controller
+actions at runtime, so no `function_calls` row points at them; a controller
+action a route reaches is the function (`module`, `action`, 2). Routes carry
+no source line: `__routes__/0` records none, and the lines of the matching
+clauses are not reliable across Phoenix versions.
+
 ## Example queries
 
 All queries run against `faction.duckdb`.
@@ -347,6 +365,14 @@ What does `index/2` call?
 SELECT callee_module, callee_function, callee_arity, line
 FROM function_calls
 WHERE caller_module = 'MyAppWeb.OrderController' AND caller_function = 'index' AND caller_arity = 2;
+```
+
+Which routes reach `index/2`?
+
+```sql
+SELECT r.verb, r.route, r.router FROM routes r
+JOIN functions f ON f.module = r.module AND f.function = r.action AND f.arity = 2
+WHERE f.module = 'MyAppWeb.OrderController' AND f.function = 'index';
 ```
 
 Where is `MyApp.Orders.Order` used as a value (not called)?
@@ -379,7 +405,9 @@ WITH arities AS (
   SELECT f.module, f.function, f.arity, f.path, f.start_line FROM functions f
   WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
     AND NOT EXISTS (SELECT 1 FROM callback_impls i
-      WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)),
+      WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
+    AND NOT EXISTS (SELECT 1 FROM routes r
+      WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)),
 used AS (
   SELECT DISTINCT a.module, a.function, a.start_line FROM arities a
   JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
@@ -393,9 +421,10 @@ GROUP BY ALL ORDER BY ALL;
 ```
 
 (Macros are left out because their use sites are not recorded. Callback
-implementations are left out. `dynamic_function_calls`, `module_references` (a
-module passed as a value is used through its callbacks), and framework entry
-points make this a candidate list, not a verdict. The agent decides.)
+implementations and controller actions a route reaches are left out.
+`dynamic_function_calls`, `module_references` (a module passed as a value is
+used through its callbacks), and other framework entry points make this a
+candidate list, not a verdict. The agent decides.)
 
 ## Non-goals for v1
 
@@ -419,6 +448,7 @@ the next:
 2. `function_calls`, `dynamic_function_calls`.
 3. `behaviours`, `callbacks` (and the `callback_impls` view).
 4. Ecto relations.
+5. Phoenix routes.
 
 Validate every slice by climbing the target ladder. Do not move up a rung until
 the current one is boringly correct.
