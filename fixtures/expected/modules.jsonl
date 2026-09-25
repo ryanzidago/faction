@@ -14,7 +14,7 @@
 {"module":"MyApp.Orders","is_generated":false,"path":"lib/my_app/orders.ex","start_line":1,"end_line":7}
 {"module":"MyApp.Repo","is_generated":false,"path":"lib/my_app/repo.ex","start_line":1,"end_line":5}
 {"module":"MyApp.Shapes","is_generated":false,"path":"lib/my_app/shapes.ex","start_line":1,"end_line":14}
-{"module":"MyApp.Workers.Mailer","is_generated":false,"path":"lib/my_app/workers/mailer.ex","start_line":1,"end_line":6}
+{"module":"MyApp.Workers.Mailer","is_generated":false,"path":"lib/my_app/workers/mailer.ex","start_line":1,"end_line":9}
 {"module":"MyAppWeb.Components","is_generated":false,"path":"lib/my_app_web/components.ex","start_line":1,"end_line":9}
 {"module":"MyAppWeb.OrderController","is_generated":false,"path":"lib/my_app_web/order_controller.ex","start_line":1,"end_line":7}
 {"module":"MyAppWeb.Router","is_generated":false,"path":"lib/my_app_web/router.ex","start_line":1,"end_line":7}

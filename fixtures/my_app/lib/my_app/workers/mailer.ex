@@ -3,4 +3,7 @@ defmodule MyApp.Workers.Mailer do
 
   @impl Oban.Worker
   def perform(job), do: MyApp.Notifier.deliver(job)
+
+  @impl Oban.Worker
+  def backoff(_job, seconds \\ 15), do: seconds
 end

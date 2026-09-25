@@ -371,7 +371,7 @@ WHERE f.module = 'MyAppWeb.OrderController' AND f.function = 'index'
 
 ### Which public functions does nothing call?
 
-A candidate list, not a verdict. There is one row per source definition: a default-argument arity is grouped with the arity named by its `defaults_to_arity`, and calls between the two do not count as use. Callback implementations, controller actions a route reaches, and macros (whose use sites are not recorded) are excluded.
+A candidate list, not a verdict. There is one row per source definition: a default-argument arity is grouped with the arity named by its `defaults_to_arity`, and calls between the two do not count as use. Definitions that implement a callback (at any of their arities), controller actions a route reaches, and macros (whose use sites are not recorded) are excluded.
 
 ```elixir
 Tour.query("""
@@ -381,7 +381,9 @@ WITH arities AS (
   FROM functions f
   WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
     AND NOT EXISTS (SELECT 1 FROM callback_impls i
-      WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
+      JOIN functions g ON g.module = i.module AND g.function = i.function AND g.arity = i.arity
+      WHERE i.module = f.module AND i.function = f.function
+        AND coalesce(g.defaults_to_arity, g.arity) = coalesce(f.defaults_to_arity, f.arity))
     AND NOT EXISTS (SELECT 1 FROM routes r
       WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)),
 used AS (

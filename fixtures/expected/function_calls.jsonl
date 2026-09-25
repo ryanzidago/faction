@@ -79,6 +79,7 @@
 {"caller_module":"MyApp.Shapes","caller_function":"area","caller_arity":1,"callee_module":"MyApp.Shapes","callee_function":"area","callee_arity":2,"kind":"call","path":"lib/my_app/shapes.ex","line":4}
 {"caller_module":"MyApp.Shapes","caller_function":"area","caller_arity":2,"callee_module":"erlang","callee_function":"*","callee_arity":2,"kind":"call","path":"lib/my_app/shapes.ex","line":5}
 {"caller_module":"MyApp.Shapes","caller_function":"area","caller_arity":2,"callee_module":"MyApp.Shapes","callee_function":"helper","callee_arity":1,"kind":"call","path":"lib/my_app/shapes.ex","line":6}
+{"caller_module":"MyApp.Workers.Mailer","caller_function":"backoff","caller_arity":1,"callee_module":"MyApp.Workers.Mailer","callee_function":"backoff","callee_arity":2,"kind":"call","path":"lib/my_app/workers/mailer.ex","line":8}
 {"caller_module":"MyApp.Workers.Mailer","caller_function":"perform","caller_arity":1,"callee_module":"MyApp.Notifier","callee_function":"deliver","callee_arity":1,"kind":"call","path":"lib/my_app/workers/mailer.ex","line":5}
 {"caller_module":"MyAppWeb.Components","caller_function":"button","caller_arity":1,"callee_module":"maps","callee_function":"merge","callee_arity":2,"kind":"call","path":"lib/my_app_web/components.ex","line":6}
 {"caller_module":"MyAppWeb.Components","caller_function":"button","caller_arity":1,"callee_module":"MyAppWeb.Components","callee_function":"button (overridable 1)","callee_arity":1,"kind":"call","path":"lib/my_app_web/components.ex","line":6}
