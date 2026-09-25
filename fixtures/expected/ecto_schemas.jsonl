@@ -1,0 +1,5 @@
+{"module":"MyApp.Accounts.Group","source_table":"groups"}
+{"module":"MyApp.Accounts.User","source_table":"users"}
+{"module":"MyApp.Orders.Address","source_table":null}
+{"module":"MyApp.Orders.Line","source_table":"order_lines"}
+{"module":"MyApp.Orders.Order","source_table":"orders"}

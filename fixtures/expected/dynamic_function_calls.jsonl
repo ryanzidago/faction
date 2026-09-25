@@ -1,0 +1,4 @@
+{"caller_module":"MyApp.Describable","caller_function":"describe","caller_arity":1,"callee_function":"describe","callee_arity":1,"path":"lib/my_app/describable.ex","line":2}
+{"caller_module":"MyApp.Dispatch","caller_function":"run","caller_arity":2,"callee_function":"handle","callee_arity":null,"path":"lib/my_app/dispatch.ex","line":2}
+{"caller_module":"MyApp.Dispatch","caller_function":"via_variable","caller_arity":2,"callee_function":"handle","callee_arity":1,"path":"lib/my_app/dispatch.ex","line":6}
+{"caller_module":"MyAppWeb","caller_function":"MACRO-__using__","caller_arity":2,"callee_function":null,"callee_arity":0,"path":"lib/my_app_web.ex","line":11}

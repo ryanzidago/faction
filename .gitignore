@@ -21,6 +21,10 @@ erl_crash.dump
 
 # Faction output
 /out/
+/faction
+
+# ExUnit @tag :tmp_dir
+/tmp/
 *.duckdb
 
 # Beads / Dolt files (added by bd init)

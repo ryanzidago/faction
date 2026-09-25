@@ -50,6 +50,20 @@ run = "wt step copy-ignored --require-include"
 description = "Run the test suite"
 run = "mix test"
 
+[tasks.tour]
+description = "Guided, self-checking tour of Faction on the fixture app (pass -- --app PATH for your own app)"
+run = "MIX_ENV=test mix run guides/tour.exs"
+
+[tasks."tour:livebook"]
+description = "Interactive Livebook tour of Faction (installs the Livebook escript on first use)"
+run = """
+set -eu
+livebook="${MIX_HOME:-$HOME/.mix}/escripts/livebook"
+[ -x "$livebook" ] || mix escript.install hex livebook --force
+# Local-only (bound to 127.0.0.1), so skip the access token.
+LIVEBOOK_IP=127.0.0.1 LIVEBOOK_TOKEN_ENABLED=false "$livebook" server guides/tour.livemd
+"""
+
 [tasks.credo]
 description = "Run strict Credo and Bylaw source checks"
 run = "mix credo --strict"

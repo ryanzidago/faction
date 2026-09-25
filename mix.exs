@@ -14,6 +14,7 @@ defmodule Faction.MixProject do
       test_paths: ["lib"],
       deps: deps(),
       aliases: aliases(),
+      escript: escript(),
       dialyzer: [plt_add_apps: [:mix, :ex_unit]]
     ]
   end
@@ -25,7 +26,16 @@ defmodule Faction.MixProject do
 
   @spec application() :: keyword()
   def application do
-    [extra_applications: [:logger]]
+    # Embedded in the escript so behaviours from Elixir's own applications
+    # (Mix.Task, EEx.Engine, ...) resolve for the callbacks pass.
+    [extra_applications: [:logger, :mix, :eex, :ex_unit]]
+  end
+
+  # Debug info and source parsing create atoms (~20 per BEAM on Plausible), so
+  # the escript raises the VM's atom limit for ~100k-BEAM projects.
+  @spec escript() :: keyword()
+  defp escript do
+    [main_module: Faction.CLI, emu_args: "+t 16777216"]
   end
 
   @spec deps() :: list(tuple())
@@ -38,7 +48,9 @@ defmodule Faction.MixProject do
        only: [:dev, :test],
        runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # Only for compiling the test fixture's Ecto schemas; Faction never loads Ecto.
+      {:ecto, "~> 3.12", only: :test}
     ]
   end
 

@@ -1,0 +1,7 @@
+{"module":"MyApp.Accounts.User","name":"orders","kind":"has_many","related_module":"MyApp.Orders.Order"}
+{"module":"MyApp.Accounts.User","name":"lines","kind":"has_many_through","related_module":null}
+{"module":"MyApp.Accounts.User","name":"groups","kind":"many_to_many","related_module":"MyApp.Accounts.Group"}
+{"module":"MyApp.Orders.Line","name":"order","kind":"belongs_to","related_module":"MyApp.Orders.Order"}
+{"module":"MyApp.Orders.Order","name":"user","kind":"belongs_to","related_module":"MyApp.Accounts.User"}
+{"module":"MyApp.Orders.Order","name":"lines","kind":"has_many","related_module":"MyApp.Orders.Line"}
+{"module":"MyApp.Orders.Order","name":"address","kind":"embeds_one","related_module":"MyApp.Orders.Address"}
