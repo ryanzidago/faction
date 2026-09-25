@@ -105,6 +105,43 @@ defmodule FactionTest do
   end
 
   @tag :tmp_dir
+  test "faction_columns lists only Faction's tables and views", %{tmp_dir: out} do
+    load!(out)
+
+    names = Enum.map(Faction.Relation.all() ++ Faction.Relation.views(), &to_string(&1.name))
+
+    faction_columns =
+      duckdb(out, "FROM faction_columns WHERE table_name <> 'faction_columns'")
+
+    assert faction_columns ==
+             duckdb(out, """
+             SELECT table_name, column_name, data_type, comment FROM duckdb_columns()
+             WHERE NOT internal AND table_name <> 'faction_columns'
+             ORDER BY table_name, column_index
+             """)
+
+    assert Enum.sort(Enum.uniq(Enum.map(faction_columns, & &1["table_name"]))) == Enum.sort(names)
+
+    [%{"n" => catalog}] = duckdb(out, "SELECT count(*) AS n FROM duckdb_columns()")
+    assert Enum.count(faction_columns) * 5 < catalog
+  end
+
+  @tag :tmp_dir
+  test "schema.sql run from another directory stops with one clear error", %{tmp_dir: tmp_dir} do
+    out = Path.join(tmp_dir, "out")
+    elsewhere = Path.join(tmp_dir, "elsewhere")
+    File.mkdir_p!(elsewhere)
+    Faction.run([Fixture.app_ebin()], root: Fixture.root(), out: out, deps: [Fixture.deps_ebin()])
+
+    {output, status} =
+      System.cmd("duckdb", ["x.duckdb", "-f", Path.join(out, "schema.sql")], cmd_opts(elsewhere))
+
+    assert status != 0
+    assert output =~ "Run it from its own directory"
+    refute output =~ "No files found"
+  end
+
+  @tag :tmp_dir
   test "the example queries in PRINCIPLES.md answer on the fixture", %{tmp_dir: out} do
     load!(out)
 

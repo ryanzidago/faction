@@ -253,7 +253,7 @@ Nine relations and two derived views. Every function reference is the same tripl
 Tour.er_diagram()
 ```
 
-Each relation describes itself: the comments below are read back from DuckDB, not from this notebook. Pick a tab.
+Each relation describes itself: the comments below are read back from DuckDB (`FROM faction_columns` lists every column), not from this notebook. Pick a tab.
 
 ```elixir
 tabs =
@@ -268,7 +268,7 @@ tabs =
      Kino.Layout.grid(
        [
          Kino.Markdown.new(comment),
-         Tour.query("SELECT column_name, data_type, comment FROM duckdb_columns() WHERE table_name = '#{name}'", Tour.out(), "Columns"),
+         Tour.query("SELECT column_name, data_type, comment FROM faction_columns WHERE table_name = '#{name}'", Tour.out(), "Columns"),
          Tour.query("SELECT * FROM #{name} LIMIT 8", Tour.out(), "Sample rows")
        ],
        columns: 1

@@ -53,7 +53,7 @@ fewer tokens and less guessing?* If not, it is cut.
 8. **Small surface.** One command, few flags, no caches in v1. Add speed
    machinery only against a measured problem.
 9. **Self-describing.** The agent learns the schema from the database
-   (`DESCRIBE`, column comments), not from a README.
+   (`FROM faction_columns`, `DESCRIBE`, column comments), not from a README.
 
 ## Scale target
 
@@ -98,9 +98,13 @@ per BEAM on Plausible), which is why the escript raises the atom limit.
 
 One JSONL file per relation, streamed by Faction, plus a `schema.sql`.
 Running `schema.sql` with the `duckdb` CLI loads the JSONL once into a
-`faction.duckdb` file: typed tables, a comment on every column, and the
-`external_functions` view. The agent queries that file, for example
-`duckdb faction.duckdb "SELECT ..."`.
+`faction.duckdb` file: typed tables, a comment on every column, the
+derived views, and a `faction_columns` view listing every column of
+Faction's tables and views with its type and comment (the agent's first
+query). The agent queries that file, for example
+`duckdb faction.duckdb "SELECT ..."`. The JSONL paths in `schema.sql` are
+relative (so the output is the same on every machine); run it from the
+output directory, or it stops with one error saying so.
 
 From a Mix project's root, after `mix compile`:
 
@@ -125,7 +129,7 @@ out/
   ecto_fields.jsonl
   ecto_assocs.jsonl
   schema.sql   (loads the JSONL into faction.duckdb; defines the views
-                external_functions and callback_impls)
+                external_functions, callback_impls and faction_columns)
 ```
 
 ## Compiler details
