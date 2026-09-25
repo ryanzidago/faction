@@ -198,3 +198,14 @@
 {"caller_module":"MyAppWeb","caller_function":"controller","caller_arity":0,"referenced_module":"MyAppWeb","path":"lib/my_app_web.ex","line":3}
 {"caller_module":"MyAppWeb","caller_function":"controller","caller_arity":0,"referenced_module":"MyAppWeb","path":"lib/my_app_web.ex","line":3}
 {"caller_module":"MyAppWeb","caller_function":"controller","caller_arity":0,"referenced_module":"Kernel","path":"lib/my_app_web.ex","line":3}
+{"caller_module":"MyApp.OrdersTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"ExUnit.TestModule","path":"test/my_app/orders_test.exs","line":1}
+{"caller_module":"MyApp.OrdersTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"MyApp.OrdersTest","path":"test/my_app/orders_test.exs","line":1}
+{"caller_module":"MyApp.OrdersTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"ExUnit.Test","path":"test/my_app/orders_test.exs","line":1}
+{"caller_module":"MyApp.OrdersTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"MyApp.OrdersTest","path":"test/my_app/orders_test.exs","line":1}
+{"caller_module":"MyApp.OrdersTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"MyApp.OrdersTest","path":"test/my_app/orders_test.exs","line":1}
+{"caller_module":"MyApp.ShapesTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"ExUnit.TestModule","path":"test/my_app/shapes_test.exs","line":1}
+{"caller_module":"MyApp.ShapesTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"MyApp.ShapesTest","path":"test/my_app/shapes_test.exs","line":1}
+{"caller_module":"MyApp.ShapesTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"ExUnit.Test","path":"test/my_app/shapes_test.exs","line":1}
+{"caller_module":"MyApp.ShapesTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"MyApp.ShapesTest","path":"test/my_app/shapes_test.exs","line":1}
+{"caller_module":"MyApp.ShapesTest","caller_function":"__ex_unit__","caller_arity":0,"referenced_module":"MyApp.ShapesTest","path":"test/my_app/shapes_test.exs","line":1}
+{"caller_module":"MyApp.ShapesTest","caller_function":"test a square's area scales","caller_arity":1,"referenced_module":"MyApp.Shapes","path":"test/my_app/shapes_test.exs","line":9}

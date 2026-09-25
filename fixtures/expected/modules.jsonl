@@ -19,3 +19,6 @@
 {"module":"MyAppWeb.OrderController","is_generated":false,"path":"lib/my_app_web/order_controller.ex","start_line":1,"end_line":7}
 {"module":"MyAppWeb.Router","is_generated":false,"path":"lib/my_app_web/router.ex","start_line":1,"end_line":7}
 {"module":"MyAppWeb","is_generated":false,"path":"lib/my_app_web.ex","start_line":1,"end_line":13}
+{"module":"MyApp.OrdersTest","is_generated":false,"path":"test/my_app/orders_test.exs","start_line":1,"end_line":9}
+{"module":"MyApp.ShapesTest.Square","is_generated":false,"path":"test/my_app/shapes_test.exs","start_line":4,"end_line":6}
+{"module":"MyApp.ShapesTest","is_generated":false,"path":"test/my_app/shapes_test.exs","start_line":1,"end_line":11}

@@ -19,7 +19,11 @@ defmodule FactionTest do
 
   @tag :tmp_dir
   test "the fixture's relations match the expected output", %{tmp_dir: out} do
-    Faction.run([Fixture.app_ebin()], root: Fixture.root(), out: out, deps: [Fixture.deps_ebin()])
+    Faction.run([Fixture.app_ebin(), Fixture.test_ebin()],
+      root: Fixture.root(),
+      out: out,
+      deps: [Fixture.deps_ebin()]
+    )
 
     for relation <- @relations do
       assert File.read!(Path.join(out, relation <> ".jsonl")) ==

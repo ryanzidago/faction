@@ -13,6 +13,9 @@ defmodule Faction.CLI do
   For a Mix project, from its root:
 
       faction --deps _build/dev/lib _build/dev/lib/my_app/ebin
+
+  To index its tests too, compile them with `guides/compile_tests.exs` and pass
+  the output directory as one more EBIN_DIR.
   """
 
   @usage "usage: faction [--root DIR] [--out DIR] [--deps DIR]... EBIN_DIR..."

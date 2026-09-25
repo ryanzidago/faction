@@ -20,6 +20,7 @@ Questions it must answer exactly:
 - What Ecto schemas exist, with which fields and associations?
 - Which routes reach this controller action?
 - Where is this function defined (file and lines)?
+- Which tests call this function?
 
 Out of scope for now: runtime traces, test execution data, and any judgement
 ("this is bad"). Faction reports facts about the code; the agent reasons.
@@ -40,7 +41,8 @@ fewer tokens and less guessing?* If not, it is cut.
    The same three columns appear in every relation that mentions a function, so
    any two relations join without translation.
 5. **Inventory is application-only.** `modules` and `functions` list only code
-   compiled in this project. Referenced dependencies and stdlib appear only as
+   compiled in this project, its test modules included when their BEAMs are
+   passed (see [Tests](#tests)). Referenced dependencies and stdlib appear only as
    callees in `function_calls`; the `external_functions` view derives them. NULL
    is used only where a fact is genuinely absent (for example, no source
    definition), never as a stand-in for "false".
@@ -118,6 +120,31 @@ Querying raw JSONL directly re-parses it on every query, which is too slow at
 tens of millions of rows, so the agent never does that. Faction itself has no
 DuckDB dependency: it writes JSONL and SQL text.
 
+### Tests
+
+ExUnit compiles test files in memory, so they leave no BEAMs. The project
+compiles them itself with `guides/compile_tests.exs` and passes the output
+as one more ebin directory:
+
+```
+MIX_ENV=test mix run --no-start path/to/compile_tests.exs
+faction --deps _build/test/lib _build/test/lib/my_app/ebin _build/test/test_beams
+```
+
+The script starts the project's dependencies but not the project itself,
+since a test module body may call a dependency while compiling (Plausible
+builds tests from `Tzdata` zones). A test file whose module body needs the
+running app (changelog.com reads `Endpoint.host()`) cannot compile; the
+script skips it, names it, and compiles the rest.
+
+The `test_modules` view lists the test code: every module that defines
+`__ex_unit__/0`, which `use ExUnit.Case` generates (case templates define only
+`__ex_unit__/2`), and every other module defined in the same file, such as a
+stub. A module a test loads from another file while compiling (a migration
+under `priv/`) is not test code by that rule; it appears as application code.
+Helpers in `test/support` need nothing new: they are already in the project's
+`_build/test` ebin.
+
 ```
 out/
   modules.jsonl
@@ -193,6 +220,9 @@ data model must state explicitly:
   because that is the line Phoenix records for them.
 - **Calls made only at compile time** (module bodies, attributes, macro
   expansion) are not in the BEAM and are not recorded.
+- **A test is a function** named `test <describe> <name>` with arity 1, in its
+  test module. The `test` macro declares it, so it is generated, located at
+  the `test` line (start and end).
 
 ## Data model by example
 
@@ -383,6 +413,14 @@ FROM module_references
 WHERE referenced_module = 'MyApp.Orders.Order' AND caller_module <> referenced_module;
 ```
 
+Which tests call `list_orders/1` (the tests to run after changing it)?
+
+```sql
+SELECT c.caller_module, c.caller_function, c.path, c.line
+FROM function_calls c JOIN test_modules t ON t.module = c.caller_module
+WHERE c.callee_module = 'MyApp.Orders' AND c.callee_function = 'list_orders' AND c.callee_arity = 1;
+```
+
 Blast radius: everything that transitively calls `query/1`.
 
 ```sql
@@ -396,9 +434,10 @@ WITH RECURSIVE up(module, function, arity) AS (
 SELECT * FROM up;
 ```
 
-Public application functions that nothing calls, one row per source
-definition (a default-argument arity is grouped with the arity named by its
-`defaults_to_arity`, and calls between the two do not count as use):
+Public application functions that no application code calls, one row per
+source definition (a default-argument arity is grouped with the arity named
+by its `defaults_to_arity`, and calls between the two do not count as use;
+test modules are not candidates, and a call from a test is not a use):
 
 ```sql
 WITH arities AS (
@@ -411,13 +450,15 @@ WITH arities AS (
       WHERE i.module = f.module AND i.function = f.function
         AND coalesce(g.defaults_to_arity, g.arity) = coalesce(f.defaults_to_arity, f.arity))
     AND NOT EXISTS (SELECT 1 FROM routes r
-      WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)),
+      WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)
+    AND f.module NOT IN (SELECT module FROM test_modules)),
 used AS (
   SELECT DISTINCT a.module, a.function, a.definition_arity FROM arities a
   JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
   JOIN functions s ON s.module = c.caller_module AND s.function = c.caller_function AND s.arity = c.caller_arity
   WHERE NOT (s.module = a.module AND s.function = a.function
-    AND coalesce(s.defaults_to_arity, s.arity) = a.definition_arity))
+    AND coalesce(s.defaults_to_arity, s.arity) = a.definition_arity)
+    AND s.module NOT IN (SELECT module FROM test_modules))
 SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities, a.path, a.start_line
 FROM arities a ANTI JOIN used u USING (module, function, definition_arity)
 GROUP BY a.module, a.function, a.definition_arity, a.path, a.start_line ORDER BY ALL;
@@ -433,7 +474,6 @@ candidate list, not a verdict. The agent decides.)
 ## Non-goals for v1
 
 - Runtime traces and test-execution data.
-- Test-file call collection.
 - Caches, sharding, or concurrency knobs.
 - Umbrella projects.
 - A DuckDB writer inside Faction.
