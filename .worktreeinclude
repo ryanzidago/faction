@@ -1,0 +1,3 @@
+# Elixir deps and build caches, copied from the primary worktree.
+/deps/
+/_build/

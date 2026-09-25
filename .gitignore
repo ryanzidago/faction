@@ -1,0 +1,27 @@
+/.worktrees/
+/.codex-home/*
+!/.codex-home/.gitignore
+/.claude-home/*
+!/.claude-home/.gitignore
+/.beads/
+/.dolt/
+/mise.local.toml
+.DS_Store
+
+# Beads / Dolt files (added by bd init)
+*.db
+.beads-credential-key
+.beads/proxieddb/
+
+# Elixir
+/_build/
+/deps/
+erl_crash.dump
+*.ez
+
+# Faction output
+/out/
+*.duckdb
+
+# Beads / Dolt files (added by bd init)
+.dolt/

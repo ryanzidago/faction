@@ -1,0 +1,98 @@
+[tools]
+erlang = "29.1"
+elixir = "1.20.4-otp-29"
+worktrunk = "0.74.0"
+"aqua:gastownhall/beads" = "1.2.2"
+"aqua:dolthub/dolt" = "2.2.3"
+# Agents query the JSONL relations through the DuckDB CLI (schema.sql).
+duckdb = "latest"
+jq = "1.8.2"
+
+[env]
+# Keep project state shared across worktrees, rooted at the primary checkout.
+CODEX_HOME = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.codex-home"
+CLAUDE_CONFIG_DIR = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.claude-home"
+BEADS_DIR = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.beads"
+BEADS_CENTRAL_CONFIG = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.beads/server.json"
+BEADS_CREDENTIALS_FILE = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.beads/credentials"
+BEADS_SHARED_SERVER_DIR = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.beads/shared-server"
+BD_DISABLE_METRICS = "1"
+DOLT_DISABLE_EVENT_FLUSH = "1"
+
+[tasks.setup]
+description = "Prepare shared agent state, Beads, and Elixir deps"
+run = [
+  "mkdir -p \"$CODEX_HOME\" \"$CLAUDE_CONFIG_DIR\"",
+  "mise run beads:setup",
+  "mix deps.get",
+]
+
+[tasks."beads:setup"]
+description = "Initialize local Beads storage and Git hooks"
+run = """
+set -eu
+bd init --prefix faction --non-interactive --skip-agents --skip-hooks --init-if-missing
+bd config set dolt.local-only true
+bd config set no-git-ops false
+bd config set routing.contributor .
+bd config set routing.default .
+bd config set routing.maintainer .
+# Keep local-only storage from generating a blanket prohibition on local Git work.
+cp .config/beads/PRIME.md "$BEADS_DIR/PRIME.md"
+bd hooks install
+"""
+
+[tasks."worktree:cache"]
+description = "Copy allowlisted Elixir deps and build caches from the primary worktree"
+run = "wt step copy-ignored --require-include"
+
+[tasks.test]
+description = "Run the test suite"
+run = "mix test"
+
+[tasks.credo]
+description = "Run strict Credo and Bylaw source checks"
+run = "mix credo --strict"
+
+[tasks.dialyzer]
+description = "Run Dialyzer type analysis (builds PLTs on first run)"
+run = "mix dialyzer"
+
+[tasks.qa]
+description = "Run the full quality gate (deps, warnings as errors, format, credo, dialyzer, tests)"
+quiet = true
+run = """
+set -eu
+# Prints one line per step; a failing step's full output is printed before qa stops.
+step() {
+  label=$1
+  shift
+  log=$(mktemp)
+  start=$(date +%s)
+  printf '▸ %s … ' "$label"
+  if "$@" >"$log" 2>&1; then
+    printf 'ok (%ss)\\n' $(( $(date +%s) - start ))
+    rm -f "$log"
+  else
+    status=$?
+    printf 'FAILED (exit %s, %ss)\\n' "$status" $(( $(date +%s) - start ))
+    cat "$log"
+    rm -f "$log"
+    exit "$status"
+  fi
+}
+step 'mix precommit' mix precommit
+"""
+
+[tasks."deps:sync"]
+description = "Re-install Elixir deps from the committed lockfile"
+run = "mix deps.get"
+
+[tasks.ship]
+description = "Merge this worktree into main (runs qa, removes the worktree) and push main"
+run = """
+set -eu
+primary_root=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+wt merge --no-squash --no-rebase --no-ff --yes
+git -C "$primary_root" push origin main
+"""

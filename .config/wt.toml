@@ -1,0 +1,21 @@
+# Trust and install the pinned toolchain before preparing a new worktree.
+[[pre-start]]
+mise = "mise trust && mise install"
+
+# Copy-on-write clone of the primary's deps and _build (allowlisted in
+# .worktreeinclude) so setup only recompiles what changed.
+[[pre-start]]
+cache = "mise run worktree:cache"
+
+# Fetch deps and prepare shared agent state.
+[[pre-start]]
+setup = "mise run setup"
+
+# The quality gate must pass in the worktree before a merge lands.
+[pre-merge]
+check = "mise run qa"
+
+# A merge can change mix.lock; catch the primary's deps up so new worktrees
+# don't copy stale ones.
+[post-merge]
+deps-sync = "mise run -C {{ primary_worktree_path }} deps:sync"
