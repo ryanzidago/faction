@@ -101,6 +101,28 @@ defmodule Faction.Relation do
         ]
       },
       %__MODULE__{
+        name: :module_references,
+        comment:
+          "One row per literal Elixir module used as a value in an application function: an argument (Repo.get(MyApp.Post, id), live_render(conn, MyAppWeb.FeedLive)), " <>
+            "a list element (supervisor children), a struct (%MyApp.Post{}) or any other literal. A module that is called or captured (Mod.fun(x), &Mod.fun/1) is a function_calls row instead. " <>
+            "Only Elixir.* atoms count, so Erlang modules passed as values are not listed, and atoms naming no module (e.g. a process name) are; join modules to keep application modules. " <>
+            "Modules referenced only in config files are not in any BEAM and not listed.",
+        columns: [
+          {:caller_module, "VARCHAR NOT NULL",
+           "Module of the referencing function; joins functions.module."},
+          {:caller_function, "VARCHAR NOT NULL",
+           "Referencing function; joins functions.function."},
+          {:caller_arity, "INTEGER NOT NULL",
+           "Arity of the referencing function; joins functions.arity."},
+          {:referenced_module, "VARCHAR NOT NULL",
+           "Module used as a value, e.g. MyApp.Orders.Order; joins modules.module for application modules."},
+          {:path, "VARCHAR",
+           "Source file of the reference relative to the repository root. For code injected with quote location: :keep, the file of the quote. NULL when that file lies outside the repository."},
+          {:line, "INTEGER",
+           "Line of the expression containing the reference; the head of its clause when the compiler recorded no line. NULL when path is NULL."}
+        ]
+      },
+      %__MODULE__{
         name: :behaviours,
         comment:
           "One row per behaviour an application module declares with @behaviour. A protocol implementation (defimpl) declares its protocol.",

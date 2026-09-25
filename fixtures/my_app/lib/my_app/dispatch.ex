@@ -12,4 +12,9 @@ defmodule MyApp.Dispatch do
   def invoke(fun, value), do: fun.(value)
 
   defp local(value) when is_integer(value), do: value + 1
+
+  def run_handler(args), do: run(MyApp.Handler, args)
+
+  def order?(%MyApp.Orders.Order{}), do: true
+  def order?(_other), do: false
 end

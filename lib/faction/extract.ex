@@ -56,7 +56,7 @@ defmodule Faction.Extract do
           module_row(module, true, path, beam.line, beam.line)
       end
 
-    {function_calls, dynamic_function_calls} =
+    {function_calls, dynamic_function_calls, module_references} =
       Calls.rows(beam, &locate(&1, &2, &3, path, beam, root))
 
     Map.merge(Faction.Ecto.rows(beam), %{
@@ -64,6 +64,7 @@ defmodule Faction.Extract do
       functions: function_rows(beam, module, path, source),
       function_calls: function_calls,
       dynamic_function_calls: dynamic_function_calls,
+      module_references: module_references,
       behaviours:
         beam.behaviours
         |> Enum.map(&%{module: module, behaviour: Beam.module_name(&1)})

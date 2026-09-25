@@ -117,6 +117,8 @@ defmodule Faction.Tour do
       "SELECT * FROM function_calls WHERE caller_module = 'MyApp.Orders' ORDER BY callee_module",
     dynamic_function_calls:
       "SELECT * FROM dynamic_function_calls WHERE caller_module = 'MyApp.Dispatch'",
+    module_references:
+      "SELECT * FROM module_references WHERE caller_module IN ('MyApp.Orders', 'MyApp.Dispatch') ORDER BY ALL",
     behaviours: "SELECT * FROM behaviours ORDER BY module",
     callbacks:
       "SELECT * FROM callbacks WHERE behaviour IN ('Oban.Worker', 'MyApp.Notifier') ORDER BY ALL",
@@ -431,6 +433,31 @@ defmodule Faction.Tour do
           "callee_function" => nil,
           "callee_arity" => 0,
           "line" => 11
+        }
+      ]
+    )
+
+    ask!(
+      out,
+      "Where is MyApp.Orders.Order used as a value (not called), outside the Ecto schemas?",
+      """
+      SELECT caller_module, caller_function, caller_arity, line FROM module_references
+      WHERE referenced_module = 'MyApp.Orders.Order'
+        AND caller_function NOT IN ('__schema__', '__struct__', '__changeset__')
+      ORDER BY ALL
+      """,
+      [
+        %{
+          "caller_module" => "MyApp.Dispatch",
+          "caller_function" => "order?",
+          "caller_arity" => 1,
+          "line" => 18
+        },
+        %{
+          "caller_module" => "MyApp.Orders",
+          "caller_function" => "query",
+          "caller_arity" => 1,
+          "line" => 6
         }
       ]
     )

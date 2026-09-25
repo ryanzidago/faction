@@ -58,6 +58,7 @@
 {"caller_module":"MyApp.Dispatch","caller_function":"captures","caller_arity":0,"callee_module":"erlang","callee_function":"+","callee_arity":2,"kind":"call","path":"lib/my_app/dispatch.ex","line":9}
 {"caller_module":"MyApp.Dispatch","caller_function":"local","caller_arity":1,"callee_module":"erlang","callee_function":"is_integer","callee_arity":1,"kind":"call","path":"lib/my_app/dispatch.ex","line":14}
 {"caller_module":"MyApp.Dispatch","caller_function":"local","caller_arity":1,"callee_module":"erlang","callee_function":"+","callee_arity":2,"kind":"call","path":"lib/my_app/dispatch.ex","line":14}
+{"caller_module":"MyApp.Dispatch","caller_function":"run_handler","caller_arity":1,"callee_module":"MyApp.Dispatch","callee_function":"run","callee_arity":2,"kind":"call","path":"lib/my_app/dispatch.ex","line":16}
 {"caller_module":"MyApp.Dispatch","caller_function":"run_known","caller_arity":1,"callee_module":"MyApp.Orders","callee_function":"list_orders","callee_arity":1,"kind":"call","path":"lib/my_app/dispatch.ex","line":4}
 {"caller_module":"MyApp.Handler","caller_function":"first_total","caller_arity":1,"callee_module":"MyApp.Repo","callee_function":"get!","callee_arity":1,"kind":"call","path":"lib/my_app/handler.ex","line":11}
 {"caller_module":"MyApp.Handler","caller_function":"greet","caller_arity":1,"callee_module":"MyApp.Handler","callee_function":"greet (overridable 1)","callee_arity":1,"kind":"call","path":"lib/my_app/handler.ex","line":9}

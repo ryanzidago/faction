@@ -48,7 +48,9 @@
 {"module":"MyApp.Dispatch","function":"local","arity":1,"visibility":"private","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":14,"end_line":14}
 {"module":"MyApp.Dispatch","function":"module_info","arity":0,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Dispatch","function":"module_info","arity":1,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
+{"module":"MyApp.Dispatch","function":"order?","arity":1,"visibility":"public","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":18,"end_line":19}
 {"module":"MyApp.Dispatch","function":"run","arity":2,"visibility":"public","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":2,"end_line":2}
+{"module":"MyApp.Dispatch","function":"run_handler","arity":1,"visibility":"public","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":16,"end_line":16}
 {"module":"MyApp.Dispatch","function":"run_known","arity":1,"visibility":"public","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":4,"end_line":4}
 {"module":"MyApp.Dispatch","function":"via_variable","arity":2,"visibility":"public","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":6,"end_line":6}
 {"module":"MyApp.Handler","function":"__info__","arity":1,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}

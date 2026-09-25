@@ -4,7 +4,7 @@
 {"module":"MyApp.Csv","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Describable.MyApp.Shapes","is_generated":false,"path":"lib/my_app/shapes.ex","start_line":16,"end_line":18}
 {"module":"MyApp.Describable","is_generated":false,"path":"lib/my_app/describable.ex","start_line":1,"end_line":3}
-{"module":"MyApp.Dispatch","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":1,"end_line":15}
+{"module":"MyApp.Dispatch","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":1,"end_line":20}
 {"module":"MyApp.Handler","is_generated":false,"path":"lib/my_app/handler.ex","start_line":1,"end_line":16}
 {"module":"MyApp.Notifier","is_generated":false,"path":"lib/my_app/notifier.ex","start_line":1,"end_line":6}
 {"module":"MyApp.Options","is_generated":false,"path":"lib/my_app/options.ex","start_line":1,"end_line":7}

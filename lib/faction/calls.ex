@@ -15,24 +15,28 @@ defmodule Faction.Calls do
   @typedoc "Maps the metadata of a definition, of a clause and of a call in it to the call's location."
   @type locate() :: (keyword(), keyword(), keyword() -> location())
 
+  @typedoc "Accumulated function_calls, dynamic_function_calls and module_references rows, newest first."
+  @type acc() :: {list(map()), list(map()), list(map())}
+
   @doc """
-  Returns `{function_calls, dynamic_function_calls}` rows for a module, in
-  definition order (sorted by compiled name and arity), then source order.
+  Returns `{function_calls, dynamic_function_calls, module_references}` rows
+  for a module, in definition order (sorted by compiled name and arity), then
+  source order.
   """
-  @spec rows(beam :: Beam.t(), locate :: locate()) :: {list(map()), list(map())}
+  @spec rows(beam :: Beam.t(), locate :: locate()) :: {list(map()), list(map()), list(map())}
   def rows(beam, locate) do
     module = Beam.module_name(beam.module)
 
     locals =
       MapSet.new(beam.definitions, fn {name_arity, _kind, _meta, _clauses} -> name_arity end)
 
-    {calls, dynamic_calls} =
+    {calls, dynamic_calls, references} =
       beam.definitions
       |> Enum.map(fn {{name, arity}, kind, meta, clauses} ->
         {Beam.compiled_name(kind, name, arity), meta, clauses}
       end)
       |> Enum.sort_by(fn {name_arity, _meta, _clauses} -> name_arity end)
-      |> Enum.reduce({[], []}, fn {{function, arity}, meta, clauses}, acc ->
+      |> Enum.reduce({[], [], []}, fn {{function, arity}, meta, clauses}, acc ->
         caller = %{caller_module: module, caller_function: function, caller_arity: arity}
 
         # Clauses are {meta, args, guards, body}; only their parts are AST.
@@ -41,28 +45,68 @@ defmodule Faction.Calls do
             module: beam.module,
             locals: locals,
             caller: caller,
-            locate: &locate.(meta, clause_meta, &1)
+            locate: &locate.(meta, clause_meta, &1),
+            nearest_meta: clause_meta
           }
 
           walk([args, guards, body], context, acc)
         end)
       end)
 
-    {Enum.reverse(calls), Enum.reverse(dynamic_calls)}
+    {Enum.reverse(calls), Enum.reverse(dynamic_calls), Enum.reverse(references)}
   end
 
-  @spec walk(ast :: term(), context :: map(), acc :: {list(map()), list(map())}) ::
-          {list(map()), list(map())}
-  defp walk(ast, context, acc) do
-    {_ast, acc} = Macro.prewalk(ast, acc, &visit(&1, &2, context))
-    acc
-  end
-
-  # Macro.prewalk visits the children of the node a visit returns, not the
+  # A prewalk that visits the children of the node a visit returns, not the
   # node itself: returning nil stops the walk, and a node that still needs a
-  # visit is returned inside a list.
-  @spec visit(node :: term(), acc :: {list(map()), list(map())}, context :: map()) ::
-          {term(), {list(map()), list(map())}}
+  # visit is returned inside a list. It carries the nearest enclosing meta
+  # with a line, which locates literal module atoms (they have no meta).
+  # Only the module position of remote calls and captures is not walked: it
+  # is a call, not a reference.
+  @spec walk(ast :: term(), context :: map(), acc :: acc()) :: acc()
+  defp walk({_form, meta, _args} = node, context, acc) when is_list(meta) do
+    context =
+      if meta[:line] do
+        %{context | nearest_meta: meta}
+      else
+        context
+      end
+
+    {children, acc} = visit(node, acc, context)
+    walk_children(children, node, context, acc)
+  end
+
+  defp walk(list, context, acc) when is_list(list),
+    do: Enum.reduce(list, acc, &walk(&1, context, &2))
+
+  defp walk({left, right}, context, acc), do: walk(right, context, walk(left, context, acc))
+
+  defp walk(atom, context, acc) when is_atom(atom) do
+    if String.starts_with?(Atom.to_string(atom), "Elixir.") do
+      add_reference(acc, context, atom)
+    else
+      acc
+    end
+  end
+
+  defp walk(_literal, _context, acc), do: acc
+
+  # A visit that returns its node unchanged walks the node's form and, unless
+  # it is a variable (whose third element is its context atom), its arguments.
+  @spec walk_children(children :: term(), node :: term(), context :: map(), acc :: acc()) ::
+          acc()
+  defp walk_children(node, node, context, acc) do
+    {form, _meta, args} = node
+
+    if is_list(args) do
+      walk(args, context, walk(form, context, acc))
+    else
+      walk(form, context, acc)
+    end
+  end
+
+  defp walk_children(children, _node, context, acc), do: walk(children, context, acc)
+
+  @spec visit(node :: term(), acc :: acc(), context :: map()) :: {term(), acc()}
   defp visit({:&, meta, [{:/, _slash_meta, [target, arity]}]}, acc, context)
        when is_integer(arity) do
     case target do
@@ -150,15 +194,15 @@ defmodule Faction.Calls do
   defp visit(node, acc, _context), do: {node, acc}
 
   @spec add_call(
-          acc :: {list(map()), list(map())},
+          acc :: acc(),
           context :: map(),
           module :: module(),
           function :: atom() | String.t(),
           arity :: arity(),
           kind :: String.t(),
           meta :: keyword()
-        ) :: {list(map()), list(map())}
-  defp add_call({calls, dynamic_calls}, context, module, function, arity, kind, meta) do
+        ) :: acc()
+  defp add_call({calls, dynamic_calls, references}, context, module, function, arity, kind, meta) do
     {path, line} = context.locate.(meta)
 
     row =
@@ -171,17 +215,17 @@ defmodule Faction.Calls do
         line: line
       })
 
-    {[row | calls], dynamic_calls}
+    {[row | calls], dynamic_calls, references}
   end
 
   @spec add_dynamic_call(
-          acc :: {list(map()), list(map())},
+          acc :: acc(),
           context :: map(),
           function :: atom() | nil,
           arity :: arity() | nil,
           meta :: keyword()
-        ) :: {list(map()), list(map())}
-  defp add_dynamic_call({calls, dynamic_calls}, context, function, arity, meta) do
+        ) :: acc()
+  defp add_dynamic_call({calls, dynamic_calls, references}, context, function, arity, meta) do
     {path, line} = context.locate.(meta)
 
     row =
@@ -192,7 +236,21 @@ defmodule Faction.Calls do
         line: line
       })
 
-    {calls, [row | dynamic_calls]}
+    {calls, [row | dynamic_calls], references}
+  end
+
+  @spec add_reference(acc :: acc(), context :: map(), module :: module()) :: acc()
+  defp add_reference({calls, dynamic_calls, references}, context, module) do
+    {path, line} = context.locate.(context.nearest_meta)
+
+    row =
+      Map.merge(context.caller, %{
+        referenced_module: Beam.module_name(module),
+        path: path,
+        line: line
+      })
+
+    {calls, dynamic_calls, [row | references]}
   end
 
   @spec list_length(ast :: term()) :: non_neg_integer() | nil

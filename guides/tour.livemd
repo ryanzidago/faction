@@ -100,6 +100,8 @@ defmodule Tour do
       functions |o--o{ function_calls : "callee_* (app callees)"
       function_calls ||--o{ external_functions : "callee_* (non-app callees)"
       functions ||--o{ dynamic_function_calls : "caller_*"
+      functions ||--o{ module_references : "caller_*"
+      modules |o--o{ module_references : "referenced_module (app modules)"
       modules ||--o{ behaviours : "module"
       behaviours }o--o{ callbacks : "behaviour"
       callbacks ||--o{ callback_impls : "behaviour, function, arity"
@@ -406,6 +408,19 @@ Calls whose module is only known at runtime (`apply(mod, :handle, args)`, `mod.h
 
 ```elixir
 Tour.query("SELECT * FROM dynamic_function_calls ORDER BY ALL")
+```
+
+### Where is a module used as a value?
+
+A module passed as an argument, listed as a supervisor child or matched as a struct is not called, so it is not in `function_calls`. `module_references` lists every literal module in a function body that is not a call's module. Filter out the schema's own generated functions to see the hand-written uses.
+
+```elixir
+Tour.query("""
+SELECT caller_module, caller_function, caller_arity, path, line FROM module_references
+WHERE referenced_module = 'MyApp.Orders.Order'
+  AND caller_function NOT IN ('__schema__', '__struct__', '__changeset__')
+ORDER BY ALL
+""")
 ```
 
 ### Which dependency functions does the app use?

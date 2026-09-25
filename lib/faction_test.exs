@@ -8,6 +8,7 @@ defmodule FactionTest do
     "functions",
     "function_calls",
     "dynamic_function_calls",
+    "module_references",
     "behaviours",
     "callbacks",
     "ecto_schemas",
@@ -222,6 +223,25 @@ defmodule FactionTest do
              %{"module" => "MyApp.Orders", "function" => "query", "arity" => 1},
              %{"module" => "MyAppWeb.OrderController", "function" => "index", "arity" => 2}
            ]
+
+    # Where is MyApp.Orders.Order used as a value? A module that is only
+    # called (MyApp.Repo) is not a reference.
+    assert %{
+             "caller_module" => "MyApp.Orders",
+             "caller_function" => "query",
+             "caller_arity" => 1,
+             "path" => "lib/my_app/orders.ex",
+             "line" => 6
+           } in duckdb(out, """
+           SELECT caller_module, caller_function, caller_arity, path, line
+           FROM module_references
+           WHERE referenced_module = 'MyApp.Orders.Order' AND caller_module <> referenced_module
+           """)
+
+    assert duckdb(
+             out,
+             "SELECT count(*) AS n FROM module_references WHERE referenced_module = 'MyApp.Repo'"
+           ) == [%{"n" => 0}]
 
     # Public application functions that nothing calls (a candidate list).
     unused =

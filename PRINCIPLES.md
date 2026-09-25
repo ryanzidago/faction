@@ -123,6 +123,7 @@ out/
   functions.jsonl
   function_calls.jsonl
   dynamic_function_calls.jsonl
+  module_references.jsonl
   behaviours.jsonl
   callbacks.jsonl
   ecto_schemas.jsonl
@@ -272,6 +273,20 @@ the answer to "who calls X?" may be incomplete near that site.
 {"caller_module":"MyApp.Dispatch","caller_function":"via_variable","caller_arity":2,"callee_function":"handle","callee_arity":1,"path":"lib/my_app/dispatch.ex","line":6}
 ```
 
+A module used as a value rather than called (an argument such as
+`Repo.get(MyApp.Post, id)` or `live_render(conn, MyAppWeb.FeedLive)`, a
+supervisor child, a struct `%MyApp.Post{}`) is a row in `module_references`:
+every literal `Elixir.*` atom in a function body except the module of a call
+or capture, which is already in `function_calls`. It is located at the
+nearest enclosing expression with a line. Self references are included.
+Atoms that name no module (e.g. a process name) are included too; join
+`modules` to keep application modules. Erlang modules passed as values, and
+modules named only in config files, are not listed.
+
+```json
+{"caller_module":"MyApp.Orders","caller_function":"query","caller_arity":1,"referenced_module":"MyApp.Orders.Order","path":"lib/my_app/orders.ex","line":6}
+```
+
 The `external_functions` view is the distinct callees in `function_calls`
 absent from `functions`.
 
@@ -334,6 +349,14 @@ FROM function_calls
 WHERE caller_module = 'MyAppWeb.OrderController' AND caller_function = 'index' AND caller_arity = 2;
 ```
 
+Where is `MyApp.Orders.Order` used as a value (not called)?
+
+```sql
+SELECT caller_module, caller_function, caller_arity, path, line
+FROM module_references
+WHERE referenced_module = 'MyApp.Orders.Order' AND caller_module <> referenced_module;
+```
+
 Blast radius: everything that transitively calls `query/1`.
 
 ```sql
@@ -358,8 +381,9 @@ WHERE f.visibility = 'public'
     WHERE c.callee_module = f.module AND c.callee_function = f.function AND c.callee_arity = f.arity);
 ```
 
-(Callback implementations, `dynamic_function_calls`, and framework entry points make this
-a candidate list, not a verdict. The agent decides.)
+(Callback implementations, `dynamic_function_calls`, `module_references` (a
+module passed as a value is used through its callbacks), and framework entry
+points make this a candidate list, not a verdict. The agent decides.)
 
 ## Non-goals for v1
 
