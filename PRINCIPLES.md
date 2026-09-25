@@ -221,8 +221,9 @@ data model must state explicitly:
 - **Calls made only at compile time** (module bodies, attributes, macro
   expansion) are not in the BEAM and are not recorded.
 - **A test is a function** named `test <describe> <name>` with arity 1, in its
-  test module. The `test` macro declares it, so it is generated, located at
-  the `test` line (start and end).
+  test module. The `test` macro declares it, so it is generated; it spans
+  from its `test` line to the end of its block (a test without a block, just
+  its line).
 
 ## Data model by example
 

@@ -568,6 +568,21 @@ Kino.Layout.grid(
 )
 ```
 
+**A test is a generated function** named `test <describe> <name>` with arity 1. The `test` macro declares it, and its range is the `test` block.
+
+```elixir
+Kino.Layout.grid(
+  [
+    Tour.source("test/my_app/orders_test.exs", 1, 9),
+    Tour.query("""
+    SELECT function, arity, is_generated, start_line, end_line
+    FROM functions WHERE module = 'MyApp.OrdersTest' AND function LIKE 'test %'
+    """)
+  ],
+  columns: 2
+)
+```
+
 ## Your own app
 
 Point Faction at a compiled Mix app (run `mix compile` in it first). It reads `APP/_build/dev/lib/<app>/ebin`, with `APP/_build/dev/lib` as dependencies.

@@ -145,7 +145,7 @@
 {"module":"MyApp.OrdersTest","function":"__info__","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.OrdersTest","function":"module_info","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.OrdersTest","function":"module_info","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
-{"module":"MyApp.OrdersTest","function":"test list_orders/1 returns no orders for a new user","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":"test/my_app/orders_test.exs","start_line":5,"end_line":5}
+{"module":"MyApp.OrdersTest","function":"test list_orders/1 returns no orders for a new user","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":"test/my_app/orders_test.exs","start_line":5,"end_line":7}
 {"module":"MyApp.ShapesTest.Square","function":"__info__","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.ShapesTest.Square","function":"module_info","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.ShapesTest.Square","function":"module_info","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
@@ -156,4 +156,4 @@
 {"module":"MyApp.ShapesTest","function":"__info__","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.ShapesTest","function":"module_info","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.ShapesTest","function":"module_info","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
-{"module":"MyApp.ShapesTest","function":"test a square's area scales","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":"test/my_app/shapes_test.exs","start_line":8,"end_line":8}
+{"module":"MyApp.ShapesTest","function":"test a square's area scales","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":"test/my_app/shapes_test.exs","start_line":8,"end_line":10}
