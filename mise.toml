@@ -64,6 +64,10 @@ livebook="${MIX_HOME:-$HOME/.mix}/escripts/livebook"
 LIVEBOOK_IP=127.0.0.1 LIVEBOOK_TOKEN_ENABLED=false "$livebook" server guides/tour.livemd
 """
 
+[tasks.synthetic]
+description = "Generate a seeded Phoenix app for scale runs (-- --beams N --lines L --routes R --seed S --out DIR)"
+run = "elixir validation/synthetic_app.exs"
+
 [tasks.credo]
 description = "Run strict Credo and Bylaw source checks"
 run = "mix credo --strict"
