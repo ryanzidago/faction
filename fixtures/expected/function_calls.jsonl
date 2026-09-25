@@ -61,6 +61,9 @@
 {"caller_module":"MyApp.Dispatch","caller_function":"run_known","caller_arity":1,"callee_module":"MyApp.Orders","callee_function":"list_orders","callee_arity":1,"kind":"call","path":"lib/my_app/dispatch.ex","line":4}
 {"caller_module":"MyApp.Handler","caller_function":"first_total","caller_arity":1,"callee_module":"MyApp.Repo","callee_function":"get!","callee_arity":1,"kind":"call","path":"lib/my_app/handler.ex","line":11}
 {"caller_module":"MyApp.Handler","caller_function":"greet","caller_arity":1,"callee_module":"MyApp.Handler","callee_function":"greet (overridable 1)","callee_arity":1,"kind":"call","path":"lib/my_app/handler.ex","line":9}
+{"caller_module":"MyApp.Options","caller_function":"MACRO-__using__","caller_arity":1,"callee_module":"MyApp.Options","callee_function":"MACRO-__using__","callee_arity":2,"kind":"call","path":"lib/my_app/options.ex","line":2}
+{"caller_module":"MyApp.Options","caller_function":"MACRO-__using__","caller_arity":2,"callee_module":"elixir_quote","callee_function":"validate_quote","callee_arity":1,"kind":"call","path":"lib/my_app/options.ex","line":3}
+{"caller_module":"MyApp.Options","caller_function":"MACRO-__using__","caller_arity":2,"callee_module":"elixir_quote","callee_function":"unquote","callee_arity":1,"kind":"call","path":"lib/my_app/options.ex","line":4}
 {"caller_module":"MyApp.Orders.Address","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/address.ex","line":null}
 {"caller_module":"MyApp.Orders.Line","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/line.ex","line":null}
 {"caller_module":"MyApp.Orders.Order","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/order.ex","line":null}

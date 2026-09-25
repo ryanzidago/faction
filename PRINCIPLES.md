@@ -136,7 +136,9 @@ data model must state explicitly:
 - **Identity is the compiled name.** Macros keep their BEAM names, such as
   `MACRO-build`, and their compiled arity (source arity + 1).
 - **Default arguments** compile to several arities. Each arity is its own
-  function row, all pointing at the same definition range.
+  function row, all pointing at the same definition range. The shorter
+  arities call the longest one; for a macro that call is `MACRO-name` with
+  the compiled arity, like any other macro reference.
 - **Compiler-generated functions** (`module_info`, `__info__`, `__struct__`,
   and functions from macros like `use`) are listed with `is_generated = true`.
   `is_generated` means: no direct source declaration exists, or the compiler

@@ -82,10 +82,13 @@ defmodule Faction.Calls do
   end
 
   # super(args) calls the overridden definition, renamed by defoverridable.
+  # The dispatch clause of a default argument is also a super call; for a
+  # macro its target is the compiled MACRO- name and arity.
   defp visit({:super, meta, args}, acc, context) when is_list(args) do
     case meta[:super] do
-      {_kind, name} when is_atom(name) ->
-        {args, add_call(acc, context, context.module, name, Enum.count(args), "call", meta)}
+      {kind, name} when is_atom(name) ->
+        {function, arity} = Beam.compiled_name(kind, name, Enum.count(args))
+        {args, add_call(acc, context, context.module, function, arity, "call", meta)}
 
       _unknown ->
         {args, acc}
@@ -150,7 +153,7 @@ defmodule Faction.Calls do
           acc :: {list(map()), list(map())},
           context :: map(),
           module :: module(),
-          function :: atom(),
+          function :: atom() | String.t(),
           arity :: arity(),
           kind :: String.t(),
           meta :: keyword()
@@ -161,7 +164,7 @@ defmodule Faction.Calls do
     row =
       Map.merge(context.caller, %{
         callee_module: Beam.module_name(module),
-        callee_function: Atom.to_string(function),
+        callee_function: to_string(function),
         callee_arity: arity,
         kind: kind,
         path: path,

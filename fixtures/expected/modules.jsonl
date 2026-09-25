@@ -7,6 +7,7 @@
 {"module":"MyApp.Dispatch","is_generated":false,"path":"lib/my_app/dispatch.ex","start_line":1,"end_line":15}
 {"module":"MyApp.Handler","is_generated":false,"path":"lib/my_app/handler.ex","start_line":1,"end_line":12}
 {"module":"MyApp.Notifier","is_generated":false,"path":"lib/my_app/notifier.ex","start_line":1,"end_line":6}
+{"module":"MyApp.Options","is_generated":false,"path":"lib/my_app/options.ex","start_line":1,"end_line":7}
 {"module":"MyApp.Orders.Address","is_generated":false,"path":"lib/my_app/orders/address.ex","start_line":1,"end_line":7}
 {"module":"MyApp.Orders.Line","is_generated":false,"path":"lib/my_app/orders/line.ex","start_line":1,"end_line":9}
 {"module":"MyApp.Orders.Order","is_generated":false,"path":"lib/my_app/orders/order.ex","start_line":1,"end_line":13}
