@@ -371,27 +371,28 @@ WHERE f.module = 'MyAppWeb.OrderController' AND f.function = 'index'
 
 ### Which public functions does nothing call?
 
-A candidate list, not a verdict. There is one row per source definition: default-argument arities share a `start_line`, and the shorter arity's call to the longer one does not count as use. Callback implementations, controller actions a route reaches, and macros (whose use sites are not recorded) are excluded.
+A candidate list, not a verdict. There is one row per source definition: a default-argument arity is grouped with the arity named by its `defaults_to_arity`, and calls between the two do not count as use. Callback implementations, controller actions a route reaches, and macros (whose use sites are not recorded) are excluded.
 
 ```elixir
 Tour.query("""
 WITH arities AS (
-  SELECT f.module, f.function, f.arity, f.path, f.start_line FROM functions f
+  SELECT f.module, f.function, f.arity, coalesce(f.defaults_to_arity, f.arity) AS definition_arity,
+    f.path, f.start_line
+  FROM functions f
   WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
     AND NOT EXISTS (SELECT 1 FROM callback_impls i
       WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
     AND NOT EXISTS (SELECT 1 FROM routes r
       WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)),
 used AS (
-  SELECT DISTINCT a.module, a.function, a.start_line FROM arities a
+  SELECT DISTINCT a.module, a.function, a.definition_arity FROM arities a
   JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
-  WHERE NOT EXISTS (SELECT 1 FROM arities s
-    WHERE s.module = c.caller_module AND s.function = c.caller_function
-      AND s.arity = c.caller_arity AND s.start_line = a.start_line))
+  JOIN functions s ON s.module = c.caller_module AND s.function = c.caller_function AND s.arity = c.caller_arity
+  WHERE NOT (s.module = a.module AND s.function = a.function
+    AND coalesce(s.defaults_to_arity, s.arity) = a.definition_arity))
 SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities, a.path, a.start_line
-FROM arities a ANTI JOIN used u
-  ON u.module = a.module AND u.function = a.function AND u.start_line IS NOT DISTINCT FROM a.start_line
-GROUP BY ALL ORDER BY ALL
+FROM arities a ANTI JOIN used u USING (module, function, definition_arity)
+GROUP BY a.module, a.function, a.definition_arity, a.path, a.start_line ORDER BY ALL
 """)
 ```
 
@@ -463,14 +464,14 @@ GROUP BY ALL ORDER BY call_sites DESC, e.module
 
 Facts come from what the compiler produced, which is sometimes not what the source looks like. Each rule shows the source next to the rows it produces.
 
-**Macros keep their compiled name and arity**: `defmacro square(size)` is `MACRO-square/2`. **Default arguments** compile to two arities sharing one range; the shorter one calls the longer.
+**Macros keep their compiled name and arity**: `defmacro square(size)` is `MACRO-square/2`. **Default arguments** compile to two arities sharing one range; the shorter one calls the longer and names it in `defaults_to_arity`.
 
 ```elixir
 Kino.Layout.grid(
   [
     Tour.source("lib/my_app/shapes.ex", 1, 14),
     Tour.query("""
-    SELECT function, arity, visibility, is_generated, start_line, end_line
+    SELECT function, arity, defaults_to_arity, visibility, is_generated, start_line, end_line
     FROM functions WHERE module = 'MyApp.Shapes' AND (function LIKE 'MACRO-%' OR function = 'area')
     """)
   ],

@@ -397,27 +397,28 @@ SELECT * FROM up;
 ```
 
 Public application functions that nothing calls, one row per source
-definition (default-argument arities share a `start_line`, and the shorter one's
-call to the longer one does not count as use):
+definition (a default-argument arity is grouped with the arity named by its
+`defaults_to_arity`, and calls between the two do not count as use):
 
 ```sql
 WITH arities AS (
-  SELECT f.module, f.function, f.arity, f.path, f.start_line FROM functions f
+  SELECT f.module, f.function, f.arity, coalesce(f.defaults_to_arity, f.arity) AS definition_arity,
+    f.path, f.start_line
+  FROM functions f
   WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
     AND NOT EXISTS (SELECT 1 FROM callback_impls i
       WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
     AND NOT EXISTS (SELECT 1 FROM routes r
       WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)),
 used AS (
-  SELECT DISTINCT a.module, a.function, a.start_line FROM arities a
+  SELECT DISTINCT a.module, a.function, a.definition_arity FROM arities a
   JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
-  WHERE NOT EXISTS (SELECT 1 FROM arities s
-    WHERE s.module = c.caller_module AND s.function = c.caller_function
-      AND s.arity = c.caller_arity AND s.start_line = a.start_line))
+  JOIN functions s ON s.module = c.caller_module AND s.function = c.caller_function AND s.arity = c.caller_arity
+  WHERE NOT (s.module = a.module AND s.function = a.function
+    AND coalesce(s.defaults_to_arity, s.arity) = a.definition_arity))
 SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities, a.path, a.start_line
-FROM arities a ANTI JOIN used u
-  ON u.module = a.module AND u.function = a.function AND u.start_line IS NOT DISTINCT FROM a.start_line
-GROUP BY ALL ORDER BY ALL;
+FROM arities a ANTI JOIN used u USING (module, function, definition_arity)
+GROUP BY a.module, a.function, a.definition_arity, a.path, a.start_line ORDER BY ALL;
 ```
 
 (Macros are left out because their use sites are not recorded. Callback

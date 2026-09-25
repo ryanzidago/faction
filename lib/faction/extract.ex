@@ -162,9 +162,22 @@ defmodule Faction.Extract do
   defp function_rows(beam, module, path, source) do
     defined =
       Enum.map(beam.definitions, fn {{name, arity}, kind, _meta, _clauses} = definition ->
-        owner = default_owner(definition, beam.definitions) || definition
         {function, arity} = Beam.compiled_name(kind, name, arity)
-        %{definition_row(owner, module, path, source) | function: function, arity: arity}
+
+        case default_owner(definition, beam.definitions) do
+          nil ->
+            definition_row(definition, module, path, source)
+
+          {{owner_name, owner_arity}, _kind, _meta, _clauses} = owner ->
+            {_function, defaults_to_arity} = Beam.compiled_name(kind, owner_name, owner_arity)
+
+            %{
+              definition_row(owner, module, path, source)
+              | function: function,
+                arity: arity,
+                defaults_to_arity: defaults_to_arity
+            }
+        end
       end)
 
     defined_names =
@@ -179,6 +192,7 @@ defmodule Faction.Extract do
           module: module,
           function: Atom.to_string(name),
           arity: arity,
+          defaults_to_arity: nil,
           visibility: "public",
           is_generated: true,
           path: nil,
@@ -247,6 +261,7 @@ defmodule Faction.Extract do
       module: module,
       function: function,
       arity: arity,
+      defaults_to_arity: nil,
       visibility: visibility(kind),
       is_generated: generated?,
       path: start_line && path,

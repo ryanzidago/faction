@@ -308,7 +308,8 @@ defmodule Faction.Tour do
       "Which declared public functions does nothing call? (one row per definition; callback implementations, routed actions and macros excluded; a candidate list, not a verdict)",
       """
       WITH arities AS (
-        SELECT f.module, f.function, f.arity, f.start_line FROM functions f
+        SELECT f.module, f.function, f.arity, coalesce(f.defaults_to_arity, f.arity) AS definition_arity
+        FROM functions f
         WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
           AND NOT EXISTS (SELECT 1 FROM callback_impls i
             WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
@@ -316,15 +317,14 @@ defmodule Faction.Tour do
             WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)
           AND f.module IN ('MyApp.Orders', 'MyApp.Repo', 'MyAppWeb.OrderController', 'MyApp.Workers.Mailer', 'MyApp.Shapes')),
       used AS (
-        SELECT DISTINCT a.module, a.function, a.start_line FROM arities a
+        SELECT DISTINCT a.module, a.function, a.definition_arity FROM arities a
         JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
-        WHERE NOT EXISTS (SELECT 1 FROM arities s
-          WHERE s.module = c.caller_module AND s.function = c.caller_function
-            AND s.arity = c.caller_arity AND s.start_line = a.start_line))
+        JOIN functions s ON s.module = c.caller_module AND s.function = c.caller_function AND s.arity = c.caller_arity
+        WHERE NOT (s.module = a.module AND s.function = a.function
+          AND coalesce(s.defaults_to_arity, s.arity) = a.definition_arity))
       SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities
-      FROM arities a ANTI JOIN used u
-        ON u.module = a.module AND u.function = a.function AND u.start_line IS NOT DISTINCT FROM a.start_line
-      GROUP BY a.module, a.function, a.start_line ORDER BY ALL
+      FROM arities a ANTI JOIN used u USING (module, function, definition_arity)
+      GROUP BY a.module, a.function, a.definition_arity ORDER BY ALL
       """,
       [
         %{"module" => "MyApp.Shapes", "function" => "area", "arities" => [1, 2]}
@@ -332,7 +332,7 @@ defmodule Faction.Tour do
     )
 
     say(
-      "area/1 only calls area/2 (its default argument), so the definition counts once and neither arity has a real caller.\n" <>
+      "area/1 has defaults_to_arity 2 and only calls area/2, so the definition counts once and neither arity has a real caller.\n" <>
         "OrderController.index/2 has no caller either, but a route reaches it, so it is not listed.\n"
     )
 
@@ -525,16 +525,28 @@ defmodule Faction.Tour do
 
     ask!(
       out,
-      "A default argument compiles to two arities with one range; the shorter one calls the longer.",
+      "A default argument compiles to two arities with one range; the shorter one calls the longer and names it in defaults_to_arity.",
       """
-      SELECT f.arity, f.start_line, f.end_line, c.callee_arity AS calls_arity
+      SELECT f.arity, f.defaults_to_arity, f.start_line, f.end_line, c.callee_arity AS calls_arity
       FROM functions f LEFT JOIN function_calls c
         ON c.caller_module = f.module AND c.caller_function = f.function AND c.caller_arity = f.arity AND c.callee_function = 'area'
       WHERE f.module = 'MyApp.Shapes' AND f.function = 'area' ORDER BY f.arity
       """,
       [
-        %{"arity" => 1, "start_line" => 4, "end_line" => 6, "calls_arity" => 2},
-        %{"arity" => 2, "start_line" => 4, "end_line" => 6, "calls_arity" => nil}
+        %{
+          "arity" => 1,
+          "defaults_to_arity" => 2,
+          "start_line" => 4,
+          "end_line" => 6,
+          "calls_arity" => 2
+        },
+        %{
+          "arity" => 2,
+          "defaults_to_arity" => nil,
+          "start_line" => 4,
+          "end_line" => 6,
+          "calls_arity" => nil
+        }
       ]
     )
 
