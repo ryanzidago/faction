@@ -599,6 +599,25 @@ defmodule Faction.Tour do
 
     ask!(
       out,
+      "A test is a generated function named after its describe and name, spanning its test block.",
+      """
+      SELECT function, arity, is_generated, path, start_line, end_line FROM functions
+      WHERE module = 'MyApp.OrdersTest' AND function LIKE 'test %'
+      """,
+      [
+        %{
+          "function" => "test list_orders/1 returns no orders for a new user",
+          "arity" => 1,
+          "is_generated" => true,
+          "path" => "test/my_app/orders_test.exs",
+          "start_line" => 5,
+          "end_line" => 7
+        }
+      ]
+    )
+
+    ask!(
+      out,
       "A default argument compiles to two arities with one range; the shorter one calls the longer and names it in defaults_to_arity.",
       """
       SELECT f.arity, f.defaults_to_arity, f.start_line, f.end_line, c.callee_arity AS calls_arity

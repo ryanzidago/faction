@@ -6,8 +6,8 @@ defmodule Faction.Source do
   end lines come from parsing the source. Nothing else is taken from source.
   """
 
-  @enforce_keys [:modules, :definitions, :definition_lines]
-  defstruct [:modules, :definitions, :definition_lines]
+  @enforce_keys [:modules, :definitions, :definition_lines, :tests]
+  defstruct [:modules, :definitions, :definition_lines, :tests]
 
   @typedoc "A source position: {line, column}."
   @type position() :: {pos_integer(), pos_integer()}
@@ -18,12 +18,15 @@ defmodule Faction.Source do
   `definitions` by the position of the function name in a `def`, `defp`,
   `defmacro` or `defmacrop` head, which is where the compiler anchors each
   clause. `definition_lines` holds the same end lines keyed by the head's
-  line only, for clauses the compiler records without a column.
+  line only, for clauses the compiler records without a column. `tests` is
+  keyed by the line of an ExUnit `test` with a `do` block, where the compiler
+  anchors the test function.
   """
   @type t() :: %__MODULE__{
           modules: %{pos_integer() => pos_integer()},
           definitions: %{position() => pos_integer()},
-          definition_lines: %{pos_integer() => pos_integer()}
+          definition_lines: %{pos_integer() => pos_integer()},
+          tests: %{pos_integer() => pos_integer()}
         }
 
   @module_keywords [:defmodule, :defimpl, :defprotocol]
@@ -59,19 +62,30 @@ defmodule Faction.Source do
   def definition_end_line(%__MODULE__{} = source, position),
     do: Map.get(source.definitions, position)
 
+  @doc "The end line of the `test` block starting on `line`, or nil when none starts there."
+  @spec test_end_line(source :: t(), line :: pos_integer()) :: pos_integer() | nil
+  def test_end_line(%__MODULE__{} = source, line), do: Map.get(source.tests, line)
+
   @spec parse(ast :: Macro.t()) :: t()
   defp parse(ast) do
     {_ast, source} =
-      Macro.prewalk(ast, %__MODULE__{modules: %{}, definitions: %{}, definition_lines: %{}}, fn
-        {keyword, meta, [_ | _]} = node, source when keyword in @module_keywords ->
-          {node, put_module(source, meta[:line], node)}
+      Macro.prewalk(
+        ast,
+        %__MODULE__{modules: %{}, definitions: %{}, definition_lines: %{}, tests: %{}},
+        fn
+          {keyword, meta, [_ | _]} = node, source when keyword in @module_keywords ->
+            {node, put_module(source, meta[:line], node)}
 
-        {keyword, _meta, [head | _]} = node, source when keyword in @definition_keywords ->
-          {node, put_definition(source, head_position(head), node)}
+          {keyword, _meta, [head | _]} = node, source when keyword in @definition_keywords ->
+            {node, put_definition(source, head_position(head), node)}
 
-        node, source ->
-          {node, source}
-      end)
+          {:test, meta, [_name | _] = args} = node, source ->
+            {node, put_test(source, meta[:line], List.last(args), node)}
+
+          node, source ->
+            {node, source}
+        end
+      )
 
     source
   end
@@ -88,6 +102,18 @@ defmodule Faction.Source do
         definition_lines: Map.update(source.definition_lines, line, end_line, &max(&1, end_line))
     }
   end
+
+  # Only a test with a body defines a range; `test "pending"` is one line.
+  @spec put_test(
+          source :: t(),
+          line :: pos_integer() | nil,
+          last_arg :: Macro.t(),
+          node :: Macro.t()
+        ) :: t()
+  defp put_test(source, line, [{:do, _body} | _], node) when is_integer(line),
+    do: %{source | tests: Map.put(source.tests, line, last_line(node))}
+
+  defp put_test(source, _line, _last_arg, _node), do: source
 
   @spec put_module(source :: t(), line :: pos_integer() | nil, node :: Macro.t()) :: t()
   defp put_module(source, nil, _node), do: source
