@@ -1,5 +1,5 @@
-{"caller_module":"MyApp.Accounts.Group","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/accounts/group.ex","line":null}
-{"caller_module":"MyApp.Accounts.User","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/accounts/user.ex","line":null}
+{"caller_module":"MyApp.Accounts.Group","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/accounts/group.ex","line":4}
+{"caller_module":"MyApp.Accounts.User","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/accounts/user.ex","line":4}
 {"caller_module":"MyApp.Cache","caller_function":"child_spec","caller_arity":1,"callee_module":"Supervisor","callee_function":"child_spec","callee_arity":2,"kind":"call","path":null,"line":null}
 {"caller_module":"MyApp.Cache","caller_function":"handle_call","caller_arity":3,"callee_module":"Process","callee_function":"info","callee_arity":2,"kind":"call","path":null,"line":null}
 {"caller_module":"MyApp.Cache","caller_function":"handle_call","caller_arity":3,"callee_module":"erlang","callee_function":"self","callee_arity":0,"kind":"call","path":null,"line":null}
@@ -66,15 +66,15 @@
 {"caller_module":"MyApp.Options","caller_function":"MACRO-__using__","caller_arity":1,"callee_module":"MyApp.Options","callee_function":"MACRO-__using__","callee_arity":2,"kind":"call","path":"lib/my_app/options.ex","line":2}
 {"caller_module":"MyApp.Options","caller_function":"MACRO-__using__","caller_arity":2,"callee_module":"elixir_quote","callee_function":"validate_quote","callee_arity":1,"kind":"call","path":"lib/my_app/options.ex","line":3}
 {"caller_module":"MyApp.Options","caller_function":"MACRO-__using__","caller_arity":2,"callee_module":"elixir_quote","callee_function":"unquote","callee_arity":1,"kind":"call","path":"lib/my_app/options.ex","line":4}
-{"caller_module":"MyApp.Orders.Address","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/address.ex","line":null}
-{"caller_module":"MyApp.Orders.Line","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/line.ex","line":null}
-{"caller_module":"MyApp.Orders.Order","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/order.ex","line":null}
+{"caller_module":"MyApp.Orders.Address","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/address.ex","line":4}
+{"caller_module":"MyApp.Orders.Line","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/line.ex","line":5}
+{"caller_module":"MyApp.Orders.Order","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/orders/order.ex","line":4}
 {"caller_module":"MyApp.Orders","caller_function":"list_orders","caller_arity":1,"callee_module":"MyApp.Repo","callee_function":"all","callee_arity":1,"kind":"call","path":"lib/my_app/orders.ex","line":3}
 {"caller_module":"MyApp.Orders","caller_function":"list_orders","caller_arity":1,"callee_module":"MyApp.Orders","callee_function":"query","callee_arity":1,"kind":"call","path":"lib/my_app/orders.ex","line":3}
 {"caller_module":"MyApp.Shapes","caller_function":"MACRO-square","caller_arity":2,"callee_module":"elixir_quote","callee_function":"validate_quote","callee_arity":1,"kind":"call","path":"lib/my_app/shapes.ex","line":9}
 {"caller_module":"MyApp.Shapes","caller_function":"MACRO-square","caller_arity":2,"callee_module":"elixir_quote","callee_function":"unquote","callee_arity":1,"kind":"call","path":"lib/my_app/shapes.ex","line":9}
 {"caller_module":"MyApp.Shapes","caller_function":"MACRO-square","caller_arity":2,"callee_module":"elixir_quote","callee_function":"unquote","callee_arity":1,"kind":"call","path":"lib/my_app/shapes.ex","line":9}
-{"caller_module":"MyApp.Shapes","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/shapes.ex","line":null}
+{"caller_module":"MyApp.Shapes","caller_function":"__struct__","caller_arity":1,"callee_module":"Enum","callee_function":"reduce","callee_arity":3,"kind":"call","path":"lib/my_app/shapes.ex","line":2}
 {"caller_module":"MyApp.Shapes","caller_function":"area","caller_arity":1,"callee_module":"MyApp.Shapes","callee_function":"area","callee_arity":2,"kind":"call","path":"lib/my_app/shapes.ex","line":4}
 {"caller_module":"MyApp.Shapes","caller_function":"area","caller_arity":2,"callee_module":"erlang","callee_function":"*","callee_arity":2,"kind":"call","path":"lib/my_app/shapes.ex","line":5}
 {"caller_module":"MyApp.Shapes","caller_function":"area","caller_arity":2,"callee_module":"MyApp.Shapes","callee_function":"helper","callee_arity":1,"kind":"call","path":"lib/my_app/shapes.ex","line":6}
