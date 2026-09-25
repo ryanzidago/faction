@@ -1,6 +1,7 @@
 # faction
 
 Static analysis of compiled BEAM files into flat JSONL relations that an AI agent queries with DuckDB. Read `PRINCIPLES.md` before changing anything.
+Tour the API, data model and example queries with `mise run tour:livebook` (interactive, `guides/tour.livemd`) or `mise run tour` (self-checking, terminal, `guides/tour.exs`).
 
 - Run tools through mise (`mise run <task>`, `mise exec -- <cmd>`) so pinned versions are used.
 - See `mise.toml` for additional tools relevant to this project.
