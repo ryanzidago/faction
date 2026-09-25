@@ -1,0 +1,4 @@
+{"module":"MyApp.Cache","behaviour":"GenServer"}
+{"module":"MyApp.Describable.MyApp.Shapes","behaviour":"MyApp.Describable"}
+{"module":"MyApp.Describable","behaviour":"Protocol"}
+{"module":"MyApp.Workers.Mailer","behaviour":"Oban.Worker"}

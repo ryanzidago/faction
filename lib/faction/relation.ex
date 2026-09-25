@@ -1,0 +1,224 @@
+defmodule Faction.Relation do
+  @moduledoc """
+  The relations Faction writes: name, comment, and typed, commented columns.
+
+  This is the single definition used for JSONL column order and for
+  `schema.sql`, so the two cannot drift apart.
+  """
+
+  @enforce_keys [:name, :comment, :columns]
+  defstruct [:name, :comment, :columns]
+
+  @type column() :: {name :: atom(), type :: String.t(), comment :: String.t()}
+  @type t() :: %__MODULE__{name: atom(), comment: String.t(), columns: list(column())}
+
+  @doc "All relations, in the order they are written and loaded."
+  @spec all() :: list(t())
+  def all do
+    [
+      %__MODULE__{
+        name: :modules,
+        comment:
+          "One row per module compiled in this project. Dependencies and stdlib are not listed.",
+        columns: [
+          {:module, "VARCHAR NOT NULL",
+           "Module name as written in Elixir, e.g. MyApp.Orders; Erlang modules keep their atom name, e.g. my_mod."},
+          {:is_generated, "BOOLEAN NOT NULL",
+           "True when no defmodule, defimpl or defprotocol in the repository declares this module at its recorded location, e.g. modules created by a dependency's macro."},
+          {:path, "VARCHAR",
+           "Source file relative to the repository root. NULL when the recorded source lies outside the repository."},
+          {:start_line, "INTEGER",
+           "First line of the module definition. NULL when path is NULL."},
+          {:end_line, "INTEGER",
+           "Last line of the module definition. NULL when path is NULL or the source file cannot be read."}
+        ]
+      },
+      %__MODULE__{
+        name: :functions,
+        comment:
+          "One row per compiled function of an application module, identified by (module, function, arity). " <>
+            "Macros use their compiled name and arity: defmacro foo(a) is MACRO-foo/2.",
+        columns: [
+          {:module, "VARCHAR NOT NULL", "Module defining the function; joins modules.module."},
+          {:function, "VARCHAR NOT NULL", "Compiled function name. Macros are prefixed MACRO-."},
+          {:arity, "INTEGER NOT NULL",
+           "Compiled arity. Macros have source arity + 1; each default-argument arity is its own row."},
+          {:visibility, "VARCHAR NOT NULL",
+           "public (def, defmacro) or private (defp, defmacrop)."},
+          {:is_generated, "BOOLEAN NOT NULL",
+           "True when no def in the repository declares this function, e.g. module_info/1, __struct__/1, functions injected by use, or any function of a module whose source lies outside the repository."},
+          {:path, "VARCHAR",
+           "Source file relative to the repository root. NULL when the function has no source location or the module's source lies outside the repository."},
+          {:start_line, "INTEGER",
+           "First line of the definition, over all clauses. For generated functions, the line of the code that generated them (e.g. the use line). NULL when path is NULL."},
+          {:end_line, "INTEGER",
+           "Last line of the definition, over all clauses. NULL when path is NULL or the source file cannot be read."}
+        ]
+      },
+      %__MODULE__{
+        name: :function_calls,
+        comment:
+          "One row per call site in an application function: two calls to the same function on different lines are two rows. " <>
+            "Aliases, imports and pipes are resolved; macros are expanded, so calls to macros appear as the calls they expand to. " <>
+            "Callees may be application, dependency, stdlib or Erlang functions; external_functions lists the ones not in functions.",
+        columns: [
+          {:caller_module, "VARCHAR NOT NULL",
+           "Module of the calling function; joins functions.module."},
+          {:caller_function, "VARCHAR NOT NULL", "Calling function; joins functions.function."},
+          {:caller_arity, "INTEGER NOT NULL",
+           "Arity of the calling function; joins functions.arity."},
+          {:callee_module, "VARCHAR NOT NULL",
+           "Called module. Erlang modules keep their atom name, e.g. erlang for operators such as +, lists, ets."},
+          {:callee_function, "VARCHAR NOT NULL", "Called function."},
+          {:callee_arity, "INTEGER NOT NULL", "Arity of the called function."},
+          {:kind, "VARCHAR NOT NULL",
+           "call for f(x) (including apply/3 with a literal module, function and argument list); capture for &f/1."},
+          {:path, "VARCHAR",
+           "Source file of the call site relative to the repository root. For code injected with quote location: :keep, the file of the quote. NULL when that file lies outside the repository."},
+          {:line, "INTEGER",
+           "Line of the call site. NULL when path is NULL or the compiler recorded no line."}
+        ]
+      },
+      %__MODULE__{
+        name: :dynamic_function_calls,
+        comment:
+          "Call sites whose callee module is only known at runtime: apply/3 with a non-literal module or function, and mod.fun(x) on a variable. " <>
+            "Near these sites, answers to who calls X may be incomplete. Anonymous function calls (fun.(x)) are not listed.",
+        columns: [
+          {:caller_module, "VARCHAR NOT NULL",
+           "Module of the calling function; joins functions.module."},
+          {:caller_function, "VARCHAR NOT NULL", "Calling function; joins functions.function."},
+          {:caller_arity, "INTEGER NOT NULL",
+           "Arity of the calling function; joins functions.arity."},
+          {:callee_function, "VARCHAR",
+           "Called function when it is a literal, e.g. handle in mod.handle(x). NULL when unknown."},
+          {:callee_arity, "INTEGER",
+           "Number of arguments when known. NULL when the argument list is not a literal list."},
+          {:path, "VARCHAR",
+           "Source file of the call site relative to the repository root. NULL outside the repository."},
+          {:line, "INTEGER",
+           "Line of the call site. NULL when path is NULL or the compiler recorded no line."}
+        ]
+      },
+      %__MODULE__{
+        name: :behaviours,
+        comment:
+          "One row per behaviour an application module declares with @behaviour. A protocol implementation (defimpl) declares its protocol.",
+        columns: [
+          {:module, "VARCHAR NOT NULL",
+           "Application module declaring the behaviour; joins modules.module."},
+          {:behaviour, "VARCHAR NOT NULL",
+           "Declared behaviour, e.g. GenServer, Oban.Worker, gen_server; joins callbacks.behaviour."}
+        ]
+      },
+      %__MODULE__{
+        name: :callbacks,
+        comment:
+          "The callback contract of each behaviour declared by, or defined in, the application, including behaviours from dependencies, " <>
+            "Elixir and Erlang/OTP. Read from behaviour_info/1 in the behaviour's BEAM. A behaviour whose BEAM was not found has no rows.",
+        columns: [
+          {:behaviour, "VARCHAR NOT NULL", "Behaviour defining the callback."},
+          {:function, "VARCHAR NOT NULL",
+           "Callback function name. Macro callbacks use the compiled name, e.g. MACRO-template."},
+          {:arity, "INTEGER NOT NULL", "Callback arity. Macro callbacks have source arity + 1."},
+          {:is_optional, "BOOLEAN NOT NULL", "True when listed in @optional_callbacks."}
+        ]
+      },
+      %__MODULE__{
+        name: :ecto_schemas,
+        comment:
+          "One row per Ecto schema (use Ecto.Schema with schema or embedded_schema) in the application, read from __schema__/1.",
+        columns: [
+          {:module, "VARCHAR NOT NULL", "Schema module; joins modules.module."},
+          {:source_table, "VARCHAR",
+           "Table (source) name, e.g. orders. NULL for embedded schemas."}
+        ]
+      },
+      %__MODULE__{
+        name: :ecto_fields,
+        comment:
+          "Persisted fields of each Ecto schema in declaration order, including foreign keys (user_id), timestamps and embeds. Virtual fields are not listed.",
+        columns: [
+          {:module, "VARCHAR NOT NULL", "Schema module; joins ecto_schemas.module."},
+          {:field, "VARCHAR NOT NULL", "Field name."},
+          {:type, "VARCHAR",
+           "Ecto type: primitives by name (string, decimal, id), custom and parameterized types by module (Ecto.Enum, Ecto.Embedded), " <>
+             "composites in Elixir syntax ({:array, :string}). NULL when not a literal."},
+          {:is_primary_key, "BOOLEAN NOT NULL", "True when the field is part of the primary key."}
+        ]
+      },
+      %__MODULE__{
+        name: :ecto_assocs,
+        comment:
+          "Associations and embeds of each Ecto schema, associations first, each in declaration order.",
+        columns: [
+          {:module, "VARCHAR NOT NULL", "Schema module; joins ecto_schemas.module."},
+          {:name, "VARCHAR NOT NULL", "Association or embed name, e.g. user."},
+          {:kind, "VARCHAR NOT NULL",
+           "belongs_to, has_one, has_many, has_one_through, has_many_through, many_to_many, embeds_one or embeds_many."},
+          {:related_module, "VARCHAR",
+           "Associated or embedded schema; joins ecto_schemas.module. NULL for through associations, which name a path instead."}
+        ]
+      }
+    ]
+  end
+
+  @typedoc "A view derived at query time from the relations, with commented columns."
+  @type view() :: %{
+          name: atom(),
+          comment: String.t(),
+          columns: list({atom(), String.t()}),
+          sql: String.t()
+        }
+
+  @doc "Views derived from the relations. Faction stores facts; anything derivable is a view."
+  @spec views() :: list(view())
+  def views do
+    [
+      %{
+        name: :external_functions,
+        comment:
+          "Functions called by application code but not defined in it: dependencies, stdlib and Erlang. Derived from function_calls.",
+        columns: [
+          {:module,
+           "Called module outside the application, e.g. Enum, erlang, Phoenix.Controller."},
+          {:function, "Called function."},
+          {:arity, "Arity of the called function."}
+        ],
+        sql: """
+        SELECT DISTINCT c.callee_module AS module, c.callee_function AS function, c.callee_arity AS arity
+        FROM function_calls c
+        WHERE NOT EXISTS (
+          SELECT 1 FROM functions f
+          WHERE f.module = c.callee_module AND f.function = c.callee_function AND f.arity = c.callee_arity)
+        """
+      },
+      %{
+        name: :callback_impls,
+        comment:
+          "Functions that fulfil a callback of a behaviour their module declares. Derived from behaviours, callbacks and functions.",
+        columns: [
+          {:module, "Implementing module; joins functions.module."},
+          {:function, "Implementing function; joins functions.function."},
+          {:arity, "Arity of the implementing function; joins functions.arity."},
+          {:behaviour, "Behaviour whose callback the function fulfils."}
+        ],
+        sql: """
+        SELECT b.module, c.function, c.arity, b.behaviour
+        FROM behaviours b
+        JOIN callbacks c ON c.behaviour = b.behaviour
+        JOIN functions f ON f.module = b.module AND f.function = c.function AND f.arity = c.arity
+        """
+      }
+    ]
+  end
+
+  @doc "Returns the relation with the given name."
+  @spec fetch!(name :: atom()) :: t()
+  def fetch!(name),
+    do: Enum.find(all(), &(&1.name == name)) || raise(ArgumentError, "unknown relation #{name}")
+
+  @doc "The JSONL file name of a relation."
+  @spec file_name(relation :: t()) :: String.t()
+  def file_name(%__MODULE__{} = relation), do: "#{relation.name}.jsonl"
+end

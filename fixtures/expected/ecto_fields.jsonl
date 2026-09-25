@@ -1,0 +1,17 @@
+{"module":"MyApp.Accounts.Group","field":"id","type":"id","is_primary_key":true}
+{"module":"MyApp.Accounts.Group","field":"name","type":"string","is_primary_key":false}
+{"module":"MyApp.Accounts.User","field":"id","type":"id","is_primary_key":true}
+{"module":"MyApp.Accounts.User","field":"email","type":"string","is_primary_key":false}
+{"module":"MyApp.Orders.Address","field":"id","type":"binary_id","is_primary_key":true}
+{"module":"MyApp.Orders.Address","field":"city","type":"string","is_primary_key":false}
+{"module":"MyApp.Orders.Line","field":"uuid","type":"binary_id","is_primary_key":true}
+{"module":"MyApp.Orders.Line","field":"quantity","type":"integer","is_primary_key":false}
+{"module":"MyApp.Orders.Line","field":"order_id","type":"id","is_primary_key":false}
+{"module":"MyApp.Orders.Order","field":"id","type":"id","is_primary_key":true}
+{"module":"MyApp.Orders.Order","field":"total","type":"decimal","is_primary_key":false}
+{"module":"MyApp.Orders.Order","field":"status","type":"Ecto.Enum","is_primary_key":false}
+{"module":"MyApp.Orders.Order","field":"tags","type":"{:array, :string}","is_primary_key":false}
+{"module":"MyApp.Orders.Order","field":"user_id","type":"id","is_primary_key":false}
+{"module":"MyApp.Orders.Order","field":"address","type":"Ecto.Embedded","is_primary_key":false}
+{"module":"MyApp.Orders.Order","field":"inserted_at","type":"naive_datetime","is_primary_key":false}
+{"module":"MyApp.Orders.Order","field":"updated_at","type":"naive_datetime","is_primary_key":false}
