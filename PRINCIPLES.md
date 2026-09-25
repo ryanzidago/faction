@@ -164,6 +164,14 @@ data model must state explicitly:
   renames the original to e.g. `action (overridable 2)`; `super(...)` is a
   call to it. An original that is overridden without `super` is discarded by
   the compiler and does not appear.
+- **Function components with `attr`/`slot`** compile to a pair: the public
+  `name/1` is a wrapper that merges the attribute defaults and calls the
+  private `name (overridable 1)`, which holds the body. Both are declared,
+  share the `def`'s range, and the wrapper's calls are at the `def` line; to
+  see what a component calls, follow the wrapper to its overridable body.
+  (Code that `@before_compile` generates without line information carries
+  the `defmodule` line; in a clause that starts later, such a call is
+  located at the clause head.)
 - **Default-argument expressions run in the shorter arity**: in
   `def generate(bytes \\ random_bytes())`, `generate/0` calls
   `random_bytes/0` and `generate/1`.

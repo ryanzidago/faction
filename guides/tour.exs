@@ -86,7 +86,7 @@ defmodule Faction.Tour do
 
     check!(
       "every fixture BEAM was extracted, none skipped",
-      summary.beams == 19 and summary.skipped == []
+      summary.beams == 20 and summary.skipped == []
     )
 
     check!("every declared behaviour resolved to a BEAM", summary.missing_behaviours == [])

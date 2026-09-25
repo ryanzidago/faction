@@ -6,8 +6,8 @@ defmodule Faction.Source do
   end lines come from parsing the source. Nothing else is taken from source.
   """
 
-  @enforce_keys [:modules, :definitions]
-  defstruct [:modules, :definitions]
+  @enforce_keys [:modules, :definitions, :definition_lines]
+  defstruct [:modules, :definitions, :definition_lines]
 
   @typedoc "A source position: {line, column}."
   @type position() :: {pos_integer(), pos_integer()}
@@ -17,11 +17,13 @@ defmodule Faction.Source do
   `defprotocol` (the compiler records only the line for some of them);
   `definitions` by the position of the function name in a `def`, `defp`,
   `defmacro` or `defmacrop` head, which is where the compiler anchors each
-  clause.
+  clause. `definition_lines` holds the same end lines keyed by the head's
+  line only, for clauses the compiler records without a column.
   """
   @type t() :: %__MODULE__{
           modules: %{pos_integer() => pos_integer()},
-          definitions: %{position() => pos_integer()}
+          definitions: %{position() => pos_integer()},
+          definition_lines: %{pos_integer() => pos_integer()}
         }
 
   @module_keywords [:defmodule, :defimpl, :defprotocol]
@@ -43,15 +45,29 @@ defmodule Faction.Source do
   @spec module_end_line(source :: t(), line :: pos_integer()) :: pos_integer() | nil
   def module_end_line(%__MODULE__{} = source, line), do: Map.get(source.modules, line)
 
+  @doc """
+  The end line of the definition whose head is at `position`, or nil when no
+  definition starts there. A position without a column (code generated with
+  `quote line: line`, such as Phoenix's function component wrappers) matches
+  a definition starting on that line.
+  """
+  @spec definition_end_line(source :: t(), position :: {pos_integer(), pos_integer() | nil}) ::
+          pos_integer() | nil
+  def definition_end_line(%__MODULE__{} = source, {line, nil}),
+    do: Map.get(source.definition_lines, line)
+
+  def definition_end_line(%__MODULE__{} = source, position),
+    do: Map.get(source.definitions, position)
+
   @spec parse(ast :: Macro.t()) :: t()
   defp parse(ast) do
     {_ast, source} =
-      Macro.prewalk(ast, %__MODULE__{modules: %{}, definitions: %{}}, fn
+      Macro.prewalk(ast, %__MODULE__{modules: %{}, definitions: %{}, definition_lines: %{}}, fn
         {keyword, meta, [_ | _]} = node, source when keyword in @module_keywords ->
-          {node, put_range(source, :modules, meta[:line], node)}
+          {node, put_module(source, meta[:line], node)}
 
         {keyword, _meta, [head | _]} = node, source when keyword in @definition_keywords ->
-          {node, put_range(source, :definitions, head_position(head), node)}
+          {node, put_definition(source, head_position(head), node)}
 
         node, source ->
           {node, source}
@@ -60,16 +76,24 @@ defmodule Faction.Source do
     source
   end
 
-  @spec put_range(
-          source :: t(),
-          key :: :modules | :definitions,
-          anchor :: pos_integer() | position() | nil,
-          node :: Macro.t()
-        ) :: t()
-  defp put_range(source, _key, nil, _node), do: source
+  @spec put_definition(source :: t(), position :: position() | nil, node :: Macro.t()) :: t()
+  defp put_definition(source, nil, _node), do: source
 
-  defp put_range(source, key, anchor, node),
-    do: Map.update!(source, key, &Map.put(&1, anchor, last_line(node)))
+  defp put_definition(source, {line, _column} = position, node) do
+    end_line = last_line(node)
+
+    %{
+      source
+      | definitions: Map.put(source.definitions, position, end_line),
+        definition_lines: Map.update(source.definition_lines, line, end_line, &max(&1, end_line))
+    }
+  end
+
+  @spec put_module(source :: t(), line :: pos_integer() | nil, node :: Macro.t()) :: t()
+  defp put_module(source, nil, _node), do: source
+
+  defp put_module(source, line, node),
+    do: %{source | modules: Map.put(source.modules, line, last_line(node))}
 
   @spec head_position(head :: Macro.t()) :: position() | nil
   defp head_position({:when, _meta, [call | _guards]}), do: head_position(call)
