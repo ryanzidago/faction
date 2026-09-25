@@ -143,6 +143,10 @@ data model must state explicitly:
   and functions from macros like `use`) are listed with `is_generated = true`.
   `is_generated` means: no direct source declaration exists, or the compiler
   marked it generated.
+- **Mixed clauses.** A declared function can also get clauses from macros:
+  a first clause injected by `use`, or a catch-all added by `@before_compile`.
+  It is still declared (`is_generated = false`), and only its declared clauses
+  give its range. Calls in the injected clauses keep their own lines.
 - **Generated modules** whose recorded source lies outside the repository keep
   their rows but have NULL path and lines; dependency source is never reported
   as an application definition.

@@ -56,6 +56,7 @@
 {"module":"MyApp.Handler","function":"greet","arity":1,"visibility":"public","is_generated":false,"path":"lib/my_app/handler.ex","start_line":9,"end_line":9}
 {"module":"MyApp.Handler","function":"greet (overridable 1)","arity":1,"visibility":"private","is_generated":true,"path":"lib/my_app/handler.ex","start_line":2,"end_line":2}
 {"module":"MyApp.Handler","function":"handle","arity":1,"visibility":"public","is_generated":false,"path":"lib/my_app/handler.ex","start_line":4,"end_line":7}
+{"module":"MyApp.Handler","function":"handle_info","arity":2,"visibility":"public","is_generated":false,"path":"lib/my_app/handler.ex","start_line":13,"end_line":15}
 {"module":"MyApp.Handler","function":"module_info","arity":0,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Handler","function":"module_info","arity":1,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Notifier","function":"__info__","arity":1,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}

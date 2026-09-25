@@ -191,13 +191,24 @@ defmodule Faction.Extract do
         ) :: map()
   defp definition_row({{name, arity}, kind, meta, clauses}, module, path, source) do
     {function, arity} = Beam.compiled_name(kind, name, arity)
-    marked_generated? = generated_meta?(meta)
+    metas = [meta | Enum.map(clauses, &elem(&1, 0))]
 
-    # A declared function can gain clauses from macros, e.g. a catch-all
-    # added by @before_compile; only its declared clauses give its range.
+    # A declared function can gain clauses from macros, e.g. a first clause
+    # injected by `use` or a catch-all added by @before_compile; only its
+    # declared clauses give its range. It is generated only when no clause
+    # is declared.
+    declared_metas = Enum.reject(metas, &generated_meta?/1)
+    marked_generated? = Enum.empty?(declared_metas)
+
+    located_metas =
+      if marked_generated? do
+        metas
+      else
+        declared_metas
+      end
+
     positions =
-      [meta | Enum.map(clauses, &elem(&1, 0))]
-      |> Enum.reject(&(not marked_generated? and generated_meta?(&1)))
+      located_metas
       |> Enum.map(&{&1[:line], &1[:column]})
       |> Enum.reject(fn {line, _column} -> is_nil(line) end)
 

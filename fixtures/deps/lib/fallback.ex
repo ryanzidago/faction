@@ -7,6 +7,8 @@ defmodule Fallback do
 
       def greet(name), do: "hi " <> name
       defoverridable greet: 1
+
+      def handle_info({:clear, key}, state), do: Map.delete(state, key)
     end
   end
 
