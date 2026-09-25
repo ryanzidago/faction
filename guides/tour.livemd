@@ -100,14 +100,19 @@ defmodule Tour do
       functions |o--o{ function_calls : "callee_* (app callees)"
       function_calls ||--o{ external_functions : "callee_* (non-app callees)"
       functions ||--o{ dynamic_function_calls : "caller_*"
+      functions ||--o{ module_references : "caller_*"
+      modules |o--o{ module_references : "referenced_module (app modules)"
       modules ||--o{ behaviours : "module"
       behaviours }o--o{ callbacks : "behaviour"
       callbacks ||--o{ callback_impls : "behaviour, function, arity"
       functions ||--o{ callback_impls : "module, function, arity"
+      modules ||--o| test_modules : "module (ExUnit test modules)"
       modules ||--o| ecto_schemas : "module"
       ecto_schemas ||--o{ ecto_fields : "module"
       ecto_schemas ||--o{ ecto_assocs : "module"
       ecto_schemas |o--o{ ecto_assocs : "related_module"
+      modules ||--o{ routes : "router"
+      functions |o--o{ routes : "module, action (arity 2)"
     """
 
     Kino.Mermaid.new("erDiagram\n" <> Enum.join(tables ++ views, "\n") <> "\n" <> joins)
@@ -201,13 +206,15 @@ Tour.fixture_sources()
 
 ## Running Faction
 
-The notebook compiles the fixture (Faction itself never compiles anything; it only reads BEAMs), then runs Faction on the app's `ebin` directory. `deps:` points at dependency BEAMs, read only to find the callbacks of behaviours such as `Oban.Worker`.
+The notebook compiles the fixture (Faction itself never compiles anything; it only reads BEAMs), then runs Faction on the app's `ebin` directory and on its compiled tests. `deps:` points at dependency BEAMs, read only to find the callbacks of behaviours such as `Oban.Worker`.
+
+Test files leave no BEAMs behind, so a project compiles them itself with `guides/compile_tests.exs` (`MIX_ENV=test mix run --no-start path/to/compile_tests.exs`, from the project root) and passes the output directory as one more ebin directory. The fixture does the same.
 
 ```elixir
 Faction.Fixture.compile!()
 
 summary =
-  Faction.run([Faction.Fixture.app_ebin()],
+  Faction.run([Faction.Fixture.app_ebin(), Faction.Fixture.test_ebin()],
     root: Faction.Fixture.root(),
     out: Tour.out(),
     deps: [Faction.Fixture.deps_ebin()]
@@ -222,7 +229,8 @@ Kino.Markdown.new("""
 faction --root #{Faction.Fixture.root()} \\
   --out #{Tour.out()} \\
   --deps #{Faction.Fixture.deps_ebin()} \\
-  #{Faction.Fixture.app_ebin()}
+  #{Faction.Fixture.app_ebin()} \\
+  #{Faction.Fixture.test_ebin()}
 ~~~
 """)
 ```
@@ -253,7 +261,7 @@ Nine relations and two derived views. Every function reference is the same tripl
 Tour.er_diagram()
 ```
 
-Each relation describes itself: the comments below are read back from DuckDB, not from this notebook. Pick a tab.
+Each relation describes itself: the comments below are read back from DuckDB (`FROM faction_columns` lists every column), not from this notebook. Pick a tab.
 
 ```elixir
 tabs =
@@ -268,7 +276,7 @@ tabs =
      Kino.Layout.grid(
        [
          Kino.Markdown.new(comment),
-         Tour.query("SELECT column_name, data_type, comment FROM duckdb_columns() WHERE table_name = '#{name}'", Tour.out(), "Columns"),
+         Tour.query("SELECT column_name, data_type, comment FROM faction_columns WHERE table_name = '#{name}'", Tour.out(), "Columns"),
          Tour.query("SELECT * FROM #{name} LIMIT 8", Tour.out(), "Sample rows")
        ],
        columns: 1
@@ -304,6 +312,19 @@ SELECT caller_module, caller_function, caller_arity, kind, path, line
 FROM function_calls
 WHERE callee_module = 'MyApp.Orders' AND callee_function = 'list_orders' AND callee_arity = 1
 ORDER BY caller_module, caller_function
+""")
+```
+
+### Which tests call `list_orders/1`?
+
+The tests to run after changing it. A test is the function `"test <describe> <name>"/1` of a test module; `test_modules` lists the test modules: those that define `__ex_unit__/0`, and the other modules in their files, such as stubs.
+
+```elixir
+Tour.query("""
+SELECT c.caller_module, c.caller_function, c.path, c.line
+FROM function_calls c JOIN test_modules t ON t.module = c.caller_module
+WHERE c.callee_module = 'MyApp.Orders' AND c.callee_function = 'list_orders' AND c.callee_arity = 1
+ORDER BY ALL
 """)
 ```
 
@@ -353,20 +374,56 @@ edges =
 Kino.Layout.grid([Tour.query(blast_radius <> "SELECT * FROM up ORDER BY ALL"), Tour.call_graph(edges)], columns: 2)
 ```
 
-### Which public functions does nothing call?
+### Which routes reach `OrderController.index/2`?
 
-A candidate list, not a verdict: callback implementations are excluded, and framework entry points such as controller actions (called by the router at runtime) remain.
+The router calls controller actions at runtime, so no `function_calls` row points at them. `routes` does: a controller action is the function (`module`, `action`, 2).
 
 ```elixir
 Tour.query("""
-SELECT f.module, f.function, f.arity, f.path, f.start_line
-FROM functions f
-WHERE f.visibility = 'public' AND NOT f.is_generated
-  AND NOT EXISTS (SELECT 1 FROM function_calls c
-    WHERE c.callee_module = f.module AND c.callee_function = f.function AND c.callee_arity = f.arity)
-  AND NOT EXISTS (SELECT 1 FROM callback_impls i
-    WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
-ORDER BY ALL
+SELECT r.verb, r.route, r.router FROM routes r
+JOIN functions f ON f.module = r.module AND f.function = r.action AND f.arity = 2
+WHERE f.module = 'MyAppWeb.OrderController' AND f.function = 'index'
+""")
+```
+
+### Which public functions does no application code call?
+
+A candidate list, not a verdict. There is one row per source definition: a default-argument arity is grouped with the arity named by its `defaults_to_arity`, and calls between the two do not count as use. Definitions that implement a callback (at any of their arities), controller actions a route reaches, macros (whose use sites are not recorded) and test modules are excluded, and a call from a test is not a use.
+
+```elixir
+Tour.query("""
+WITH arities AS (
+  SELECT f.module, f.function, f.arity, coalesce(f.defaults_to_arity, f.arity) AS definition_arity,
+    f.path, f.start_line
+  FROM functions f
+  WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
+    AND NOT EXISTS (SELECT 1 FROM callback_impls i
+      JOIN functions g ON g.module = i.module AND g.function = i.function AND g.arity = i.arity
+      WHERE i.module = f.module AND i.function = f.function
+        AND coalesce(g.defaults_to_arity, g.arity) = coalesce(f.defaults_to_arity, f.arity))
+    AND NOT EXISTS (SELECT 1 FROM routes r
+      WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)
+    AND f.module NOT IN (SELECT module FROM test_modules)),
+used AS (
+  SELECT DISTINCT a.module, a.function, a.definition_arity FROM arities a
+  JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
+  JOIN functions s ON s.module = c.caller_module AND s.function = c.caller_function AND s.arity = c.caller_arity
+  WHERE NOT (s.module = a.module AND s.function = a.function
+    AND coalesce(s.defaults_to_arity, s.arity) = a.definition_arity)
+    AND s.module NOT IN (SELECT module FROM test_modules))
+SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities, a.path, a.start_line
+FROM arities a ANTI JOIN used u USING (module, function, definition_arity)
+GROUP BY a.module, a.function, a.definition_arity, a.path, a.start_line ORDER BY ALL
+""")
+```
+
+`MyApp.Shapes.area` is listed although `MyApp.ShapesTest` calls it: tested, but unused by the app. Which tests call it:
+
+```elixir
+Tour.query("""
+SELECT DISTINCT c.callee_module, c.callee_function, c.callee_arity, c.caller_module
+FROM function_calls c JOIN test_modules t ON t.module = c.caller_module
+WHERE c.callee_module = 'MyApp.Shapes' AND c.callee_function = 'area'
 """)
 ```
 
@@ -408,6 +465,19 @@ Calls whose module is only known at runtime (`apply(mod, :handle, args)`, `mod.h
 Tour.query("SELECT * FROM dynamic_function_calls ORDER BY ALL")
 ```
 
+### Where is a module used as a value?
+
+A module passed as an argument, listed as a supervisor child or matched as a struct is not called, so it is not in `function_calls`. `module_references` lists every literal module in a function body that is not a call's module. Filter out the schema's own generated functions to see the hand-written uses.
+
+```elixir
+Tour.query("""
+SELECT caller_module, caller_function, caller_arity, path, line FROM module_references
+WHERE referenced_module = 'MyApp.Orders.Order'
+  AND caller_function NOT IN ('__schema__', '__struct__', '__changeset__')
+ORDER BY ALL
+""")
+```
+
 ### Which dependency functions does the app use?
 
 Dependencies and the standard library are never inventoried; they only appear as callees. `external_functions` derives them.
@@ -425,14 +495,14 @@ GROUP BY ALL ORDER BY call_sites DESC, e.module
 
 Facts come from what the compiler produced, which is sometimes not what the source looks like. Each rule shows the source next to the rows it produces.
 
-**Macros keep their compiled name and arity**: `defmacro square(size)` is `MACRO-square/2`. **Default arguments** compile to two arities sharing one range; the shorter one calls the longer.
+**Macros keep their compiled name and arity**: `defmacro square(size)` is `MACRO-square/2`. **Default arguments** compile to two arities sharing one range; the shorter one calls the longer and names it in `defaults_to_arity`.
 
 ```elixir
 Kino.Layout.grid(
   [
     Tour.source("lib/my_app/shapes.ex", 1, 14),
     Tour.query("""
-    SELECT function, arity, visibility, is_generated, start_line, end_line
+    SELECT function, arity, defaults_to_arity, visibility, is_generated, start_line, end_line
     FROM functions WHERE module = 'MyApp.Shapes' AND (function LIKE 'MACRO-%' OR function = 'area')
     """)
   ],
@@ -493,6 +563,21 @@ Kino.Layout.grid(
   [
     Tour.source("lib/my_app/dispatch.ex", 14, 14),
     Tour.query("SELECT callee_module, callee_function, callee_arity FROM function_calls WHERE caller_module = 'MyApp.Dispatch' AND caller_function = 'local'")
+  ],
+  columns: 2
+)
+```
+
+**A test is a generated function** named `test <describe> <name>` with arity 1. The `test` macro declares it, and its range is the `test` block.
+
+```elixir
+Kino.Layout.grid(
+  [
+    Tour.source("test/my_app/orders_test.exs", 1, 9),
+    Tour.query("""
+    SELECT function, arity, is_generated, start_line, end_line
+    FROM functions WHERE module = 'MyApp.OrdersTest' AND function LIKE 'test %'
+    """)
   ],
   columns: 2
 )

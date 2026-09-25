@@ -13,6 +13,9 @@ defmodule Faction.CLI do
   For a Mix project, from its root:
 
       faction --deps _build/dev/lib _build/dev/lib/my_app/ebin
+
+  To index its tests too, compile them with `guides/compile_tests.exs` and pass
+  the output directory as one more EBIN_DIR.
   """
 
   @usage "usage: faction [--root DIR] [--out DIR] [--deps DIR]... EBIN_DIR..."
@@ -83,7 +86,9 @@ defmodule Faction.CLI do
       Enum.map_join(summary.rows, ", ", fn {relation, count} -> "#{relation}: #{count}" end)
 
     IO.puts("#{summary.beams} BEAMs → #{counts}")
+    out = Path.expand(out)
     IO.puts("Load: cd #{out} && duckdb faction.duckdb < schema.sql")
+    IO.puts(~s(Then: duckdb #{Path.join(out, "faction.duckdb")} "FROM faction_columns"))
   end
 
   @spec usage(device :: :stdio | :stderr, status :: non_neg_integer()) :: non_neg_integer()

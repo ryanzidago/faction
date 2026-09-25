@@ -18,7 +18,9 @@ Questions it must answer exactly:
 - Which public functions are never called?
 - Which modules implement this behaviour, and which functions are its callbacks?
 - What Ecto schemas exist, with which fields and associations?
+- Which routes reach this controller action?
 - Where is this function defined (file and lines)?
+- Which tests call this function?
 
 Out of scope for now: runtime traces, test execution data, and any judgement
 ("this is bad"). Faction reports facts about the code; the agent reasons.
@@ -39,7 +41,8 @@ fewer tokens and less guessing?* If not, it is cut.
    The same three columns appear in every relation that mentions a function, so
    any two relations join without translation.
 5. **Inventory is application-only.** `modules` and `functions` list only code
-   compiled in this project. Referenced dependencies and stdlib appear only as
+   compiled in this project, its test modules included when their BEAMs are
+   passed (see [Tests](#tests)). Referenced dependencies and stdlib appear only as
    callees in `function_calls`; the `external_functions` view derives them. NULL
    is used only where a fact is genuinely absent (for example, no source
    definition), never as a stand-in for "false".
@@ -53,7 +56,7 @@ fewer tokens and less guessing?* If not, it is cut.
 8. **Small surface.** One command, few flags, no caches in v1. Add speed
    machinery only against a measured problem.
 9. **Self-describing.** The agent learns the schema from the database
-   (`DESCRIBE`, column comments), not from a README.
+   (`FROM faction_columns`, `DESCRIBE`, column comments), not from a README.
 
 ## Scale target
 
@@ -110,9 +113,13 @@ which is why the escript raises the atom limit.
 
 One JSONL file per relation, streamed by Faction, plus a `schema.sql`.
 Running `schema.sql` with the `duckdb` CLI loads the JSONL once into a
-`faction.duckdb` file: typed tables, a comment on every column, and the
-`external_functions` view. The agent queries that file, for example
-`duckdb faction.duckdb "SELECT ..."`.
+`faction.duckdb` file: typed tables, a comment on every column, the
+derived views, and a `faction_columns` view listing every column of
+Faction's tables and views with its type and comment (the agent's first
+query). The agent queries that file, for example
+`duckdb faction.duckdb "SELECT ..."`. The JSONL paths in `schema.sql` are
+relative (so the output is the same on every machine); run it from the
+output directory, or it stops with one error saying so.
 
 From a Mix project's root, after `mix compile`:
 
@@ -125,19 +132,46 @@ Querying raw JSONL directly re-parses it on every query, which is too slow at
 tens of millions of rows, so the agent never does that. Faction itself has no
 DuckDB dependency: it writes JSONL and SQL text.
 
+### Tests
+
+ExUnit compiles test files in memory, so they leave no BEAMs. The project
+compiles them itself with `guides/compile_tests.exs` and passes the output
+as one more ebin directory:
+
+```
+MIX_ENV=test mix run --no-start path/to/compile_tests.exs
+faction --deps _build/test/lib _build/test/lib/my_app/ebin _build/test/test_beams
+```
+
+The script starts the project's dependencies but not the project itself,
+since a test module body may call a dependency while compiling (Plausible
+builds tests from `Tzdata` zones). A test file whose module body needs the
+running app (changelog.com reads `Endpoint.host()`) cannot compile; the
+script skips it, names it, and compiles the rest.
+
+The `test_modules` view lists the test code: every module that defines
+`__ex_unit__/0`, which `use ExUnit.Case` generates (case templates define only
+`__ex_unit__/2`), and every other module defined in the same file, such as a
+stub. A module a test loads from another file while compiling (a migration
+under `priv/`) is not test code by that rule; it appears as application code.
+Helpers in `test/support` need nothing new: they are already in the project's
+`_build/test` ebin.
+
 ```
 out/
   modules.jsonl
   functions.jsonl
   function_calls.jsonl
   dynamic_function_calls.jsonl
+  module_references.jsonl
   behaviours.jsonl
   callbacks.jsonl
   ecto_schemas.jsonl
   ecto_fields.jsonl
   ecto_assocs.jsonl
+  routes.jsonl
   schema.sql   (loads the JSONL into faction.duckdb; defines the views
-                external_functions and callback_impls)
+                external_functions, callback_impls and faction_columns)
 ```
 
 ## Compiler details
@@ -148,11 +182,17 @@ data model must state explicitly:
 - **Identity is the compiled name.** Macros keep their BEAM names, such as
   `MACRO-build`, and their compiled arity (source arity + 1).
 - **Default arguments** compile to several arities. Each arity is its own
-  function row, all pointing at the same definition range.
+  function row, all pointing at the same definition range. The shorter
+  arities call the longest one; for a macro that call is `MACRO-name` with
+  the compiled arity, like any other macro reference.
 - **Compiler-generated functions** (`module_info`, `__info__`, `__struct__`,
   and functions from macros like `use`) are listed with `is_generated = true`.
   `is_generated` means: no direct source declaration exists, or the compiler
   marked it generated.
+- **Mixed clauses.** A declared function can also get clauses from macros:
+  a first clause injected by `use`, or a catch-all added by `@before_compile`.
+  It is still declared (`is_generated = false`), and only its declared clauses
+  give its range. Calls in the injected clauses keep their own lines.
 - **Generated modules** whose recorded source lies outside the repository keep
   their rows but have NULL path and lines; dependency source is never reported
   as an application definition.
@@ -170,14 +210,32 @@ data model must state explicitly:
   renames the original to e.g. `action (overridable 2)`; `super(...)` is a
   call to it. An original that is overridden without `super` is discarded by
   the compiler and does not appear.
+- **Function components with `attr`/`slot`** compile to a pair: the public
+  `name/1` is a wrapper that merges the attribute defaults and calls the
+  private `name (overridable 1)`, which holds the body. Both are declared,
+  share the `def`'s range, and the wrapper's calls are at the `def` line; to
+  see what a component calls, follow the wrapper to its overridable body.
+  (Code that `@before_compile` generates without line information carries
+  the `defmodule` line; in a clause that starts later, such a call is
+  located at the clause head.)
 - **Default-argument expressions run in the shorter arity**: in
   `def generate(bytes \\ random_bytes())`, `generate/0` calls
   `random_bytes/0` and `generate/1`.
 - **Dependency source under the root** (`deps/`, `_build/`) is not
   application source: a module a dependency defines on the app's behalf (e.g.
   `NimbleCSV.define/2`) has NULL location and is generated.
+- **Calls in generated code are located at their clause** when the compiler
+  records no line for them, as for the plugs of a Phoenix `pipeline` (all at
+  the `pipeline` line) or the `Enum.reduce/3` in `__struct__/1` (at
+  `defstruct`). Where a macro records a misleading line, Faction keeps it:
+  routes declared with Phoenix's `resources` carry the router's `use` line,
+  because that is the line Phoenix records for them.
 - **Calls made only at compile time** (module bodies, attributes, macro
   expansion) are not in the BEAM and are not recorded.
+- **A test is a function** named `test <describe> <name>` with arity 1, in its
+  test module. The `test` macro declares it, so it is generated; it spans
+  from its `test` line to the end of its block (a test without a block, just
+  its line).
 
 ## Data model by example
 
@@ -260,6 +318,20 @@ the answer to "who calls X?" may be incomplete near that site.
 {"caller_module":"MyApp.Dispatch","caller_function":"via_variable","caller_arity":2,"callee_function":"handle","callee_arity":1,"path":"lib/my_app/dispatch.ex","line":6}
 ```
 
+A module used as a value rather than called (an argument such as
+`Repo.get(MyApp.Post, id)` or `live_render(conn, MyAppWeb.FeedLive)`, a
+supervisor child, a struct `%MyApp.Post{}`) is a row in `module_references`:
+every literal `Elixir.*` atom in a function body except the module of a call
+or capture, which is already in `function_calls`. It is located at the
+nearest enclosing expression with a line. Self references are included.
+Atoms that name no module (e.g. a process name) are included too; join
+`modules` to keep application modules. Erlang modules passed as values, and
+modules named only in config files, are not listed.
+
+```json
+{"caller_module":"MyApp.Orders","caller_function":"query","caller_arity":1,"referenced_module":"MyApp.Orders.Order","path":"lib/my_app/orders.ex","line":6}
+```
+
 The `external_functions` view is the distinct callees in `function_calls`
 absent from `functions`.
 
@@ -302,6 +374,22 @@ Schema facts are decoded from the literal clauses of `__schema__/1,2` in the
 debug info; nothing is evaluated. Through associations have NULL
 `related_module` (they name a path, not a schema).
 
+### Phoenix routes
+
+```json
+// routes.jsonl: one row per route, in declaration order
+{"router":"MyAppWeb.Router","verb":"GET","route":"/orders","kind":"plug","module":"MyAppWeb.OrderController","action":"index"}
+{"router":"MyAppWeb.Router","verb":"GET","route":"/dashboard","kind":"live","module":"MyAppWeb.DashboardLive","action":"index"}
+{"router":"MyAppWeb.Router","verb":"*","route":"/admin","kind":"forward","module":"MyAppWeb.AdminPlug","action":null}
+```
+
+Routes are decoded field by field from the literal list a router's
+`__routes__/0` returns; nothing is evaluated. The router calls controller
+actions at runtime, so no `function_calls` row points at them; a controller
+action a route reaches is the function (`module`, `action`, 2). Routes carry
+no source line: `__routes__/0` records none, and the lines of the matching
+clauses are not reliable across Phoenix versions.
+
 ## Example queries
 
 All queries run against `faction.duckdb`.
@@ -322,6 +410,30 @@ FROM function_calls
 WHERE caller_module = 'MyAppWeb.OrderController' AND caller_function = 'index' AND caller_arity = 2;
 ```
 
+Which routes reach `index/2`?
+
+```sql
+SELECT r.verb, r.route, r.router FROM routes r
+JOIN functions f ON f.module = r.module AND f.function = r.action AND f.arity = 2
+WHERE f.module = 'MyAppWeb.OrderController' AND f.function = 'index';
+```
+
+Where is `MyApp.Orders.Order` used as a value (not called)?
+
+```sql
+SELECT caller_module, caller_function, caller_arity, path, line
+FROM module_references
+WHERE referenced_module = 'MyApp.Orders.Order' AND caller_module <> referenced_module;
+```
+
+Which tests call `list_orders/1` (the tests to run after changing it)?
+
+```sql
+SELECT c.caller_module, c.caller_function, c.path, c.line
+FROM function_calls c JOIN test_modules t ON t.module = c.caller_module
+WHERE c.callee_module = 'MyApp.Orders' AND c.callee_function = 'list_orders' AND c.callee_arity = 1;
+```
+
 Blast radius: everything that transitively calls `query/1`.
 
 ```sql
@@ -335,24 +447,46 @@ WITH RECURSIVE up(module, function, arity) AS (
 SELECT * FROM up;
 ```
 
-Public application functions that nothing calls:
+Public application functions that no application code calls, one row per
+source definition (a default-argument arity is grouped with the arity named
+by its `defaults_to_arity`, and calls between the two do not count as use;
+test modules are not candidates, and a call from a test is not a use):
 
 ```sql
-SELECT f.module, f.function, f.arity, f.path, f.start_line
-FROM functions f
-WHERE f.visibility = 'public'
-  AND NOT EXISTS (
-    SELECT 1 FROM function_calls c
-    WHERE c.callee_module = f.module AND c.callee_function = f.function AND c.callee_arity = f.arity);
+WITH arities AS (
+  SELECT f.module, f.function, f.arity, coalesce(f.defaults_to_arity, f.arity) AS definition_arity,
+    f.path, f.start_line
+  FROM functions f
+  WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
+    AND NOT EXISTS (SELECT 1 FROM callback_impls i
+      JOIN functions g ON g.module = i.module AND g.function = i.function AND g.arity = i.arity
+      WHERE i.module = f.module AND i.function = f.function
+        AND coalesce(g.defaults_to_arity, g.arity) = coalesce(f.defaults_to_arity, f.arity))
+    AND NOT EXISTS (SELECT 1 FROM routes r
+      WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)
+    AND f.module NOT IN (SELECT module FROM test_modules)),
+used AS (
+  SELECT DISTINCT a.module, a.function, a.definition_arity FROM arities a
+  JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
+  JOIN functions s ON s.module = c.caller_module AND s.function = c.caller_function AND s.arity = c.caller_arity
+  WHERE NOT (s.module = a.module AND s.function = a.function
+    AND coalesce(s.defaults_to_arity, s.arity) = a.definition_arity)
+    AND s.module NOT IN (SELECT module FROM test_modules))
+SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities, a.path, a.start_line
+FROM arities a ANTI JOIN used u USING (module, function, definition_arity)
+GROUP BY a.module, a.function, a.definition_arity, a.path, a.start_line ORDER BY ALL;
 ```
 
-(Callback implementations, `dynamic_function_calls`, and framework entry points make this
-a candidate list, not a verdict. The agent decides.)
+(Macros are left out because their use sites are not recorded. A definition
+is left out when any of its arities implements a callback, and so are
+controller actions a route reaches.
+`dynamic_function_calls`, `module_references` (a module passed as a value is
+used through its callbacks), and other framework entry points make this a
+candidate list, not a verdict. The agent decides.)
 
 ## Non-goals for v1
 
 - Runtime traces and test-execution data.
-- Test-file call collection.
 - Caches, sharding, or concurrency knobs.
 - Umbrella projects.
 - A DuckDB writer inside Faction.
@@ -371,6 +505,7 @@ the next:
 2. `function_calls`, `dynamic_function_calls`.
 3. `behaviours`, `callbacks` (and the `callback_impls` view).
 4. Ecto relations.
+5. Phoenix routes.
 
 Validate every slice by climbing the target ladder. Do not move up a rung until
 the current one is boringly correct.

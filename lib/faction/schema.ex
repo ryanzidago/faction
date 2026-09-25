@@ -5,15 +5,27 @@ defmodule Faction.Schema do
 
   alias Faction.Relation
 
+  @columns_view :faction_columns
+
   @doc "The contents of `schema.sql`."
   @spec render() :: String.t()
   def render do
     IO.iodata_to_binary([
-      "-- Loads Faction's JSONL relations into DuckDB. Run from this directory:\n",
+      "-- Loads Faction's JSONL relations into DuckDB with the duckdb CLI.\n",
+      "-- The JSONL paths are relative, so run it from this directory:\n",
       "--   duckdb faction.duckdb < schema.sql\n",
-      "-- Then query faction.duckdb. DESCRIBE a table or read duckdb_columns() for column comments.\n",
+      "-- Then query faction.duckdb. Start with: FROM #{@columns_view}\n",
+      "-- (every table and view column with its type and comment).\n",
+      ".bail on\n",
+      "SET VARIABLE faction_guard = (SELECT error(",
+      quote_string(
+        "schema.sql reads its JSONL files relative to the current directory. " <>
+          "Run it from its own directory: cd <that directory> && duckdb faction.duckdb < schema.sql"
+      ),
+      ") WHERE NOT EXISTS (FROM glob(#{quote_string(Relation.file_name(Relation.fetch!(:modules)))})));\n",
       Enum.map(Relation.all(), &table/1),
-      Enum.map(Relation.views(), &view/1)
+      Enum.map(Relation.views(), &view/1),
+      columns_view()
     ])
   end
 
@@ -50,6 +62,30 @@ defmodule Faction.Schema do
         "COMMENT ON COLUMN #{view.name}.#{column} IS #{quote_string(comment)};\n"
       end)
     ]
+  end
+
+  @spec columns_view() :: iodata()
+  defp columns_view do
+    names = Enum.map(Relation.all(), & &1.name) ++ Enum.map(Relation.views(), & &1.name)
+
+    view(%{
+      name: @columns_view,
+      comment:
+        "Faction's schema: every column of its tables and views with its type and comment. Start here.",
+      columns: [
+        {:table_name, "Table or view, e.g. modules, function_calls, external_functions."},
+        {:column_name, "Column name."},
+        {:data_type, "DuckDB type of the column."},
+        {:comment, "What the column holds and what it joins."}
+      ],
+      sql: """
+      SELECT table_name, column_name, data_type, comment
+      FROM duckdb_columns()
+      WHERE database_name = current_database() AND schema_name = 'main'
+        AND table_name IN (#{Enum.map_join(names ++ [@columns_view], ", ", &quote_string(to_string(&1)))})
+      ORDER BY table_name, column_index
+      """
+    })
   end
 
   @spec json_type(type :: String.t()) :: String.t()

@@ -8,16 +8,22 @@ defmodule FactionTest do
     "functions",
     "function_calls",
     "dynamic_function_calls",
+    "module_references",
     "behaviours",
     "callbacks",
     "ecto_schemas",
     "ecto_fields",
-    "ecto_assocs"
+    "ecto_assocs",
+    "routes"
   ]
 
   @tag :tmp_dir
   test "the fixture's relations match the expected output", %{tmp_dir: out} do
-    Faction.run([Fixture.app_ebin()], root: Fixture.root(), out: out, deps: [Fixture.deps_ebin()])
+    Faction.run([Fixture.app_ebin(), Fixture.test_ebin()],
+      root: Fixture.root(),
+      out: out,
+      deps: [Fixture.deps_ebin()]
+    )
 
     for relation <- @relations do
       assert File.read!(Path.join(out, relation <> ".jsonl")) ==
@@ -105,6 +111,43 @@ defmodule FactionTest do
   end
 
   @tag :tmp_dir
+  test "faction_columns lists only Faction's tables and views", %{tmp_dir: out} do
+    load!(out)
+
+    names = Enum.map(Faction.Relation.all() ++ Faction.Relation.views(), &to_string(&1.name))
+
+    faction_columns =
+      duckdb(out, "FROM faction_columns WHERE table_name <> 'faction_columns'")
+
+    assert faction_columns ==
+             duckdb(out, """
+             SELECT table_name, column_name, data_type, comment FROM duckdb_columns()
+             WHERE NOT internal AND table_name <> 'faction_columns'
+             ORDER BY table_name, column_index
+             """)
+
+    assert Enum.sort(Enum.uniq(Enum.map(faction_columns, & &1["table_name"]))) == Enum.sort(names)
+
+    [%{"n" => catalog}] = duckdb(out, "SELECT count(*) AS n FROM duckdb_columns()")
+    assert Enum.count(faction_columns) * 5 < catalog
+  end
+
+  @tag :tmp_dir
+  test "schema.sql run from another directory stops with one clear error", %{tmp_dir: tmp_dir} do
+    out = Path.join(tmp_dir, "out")
+    elsewhere = Path.join(tmp_dir, "elsewhere")
+    File.mkdir_p!(elsewhere)
+    Faction.run([Fixture.app_ebin()], root: Fixture.root(), out: out, deps: [Fixture.deps_ebin()])
+
+    {output, status} =
+      System.cmd("duckdb", ["x.duckdb", "-f", Path.join(out, "schema.sql")], cmd_opts(elsewhere))
+
+    assert status != 0
+    assert output =~ "Run it from its own directory"
+    refute output =~ "No files found"
+  end
+
+  @tag :tmp_dir
   test "the example queries in PRINCIPLES.md answer on the fixture", %{tmp_dir: out} do
     load!(out)
 
@@ -113,6 +156,20 @@ defmodule FactionTest do
            SELECT path, start_line, end_line FROM functions
            WHERE module = 'MyApp.Orders' AND function = 'list_orders' AND arity = 1
            """) == [%{"path" => "lib/my_app/orders.ex", "start_line" => 2, "end_line" => 4}]
+
+    # Which arities come from default arguments, and which arity do they default to?
+    assert duckdb(out, """
+           SELECT function, arity, defaults_to_arity FROM functions
+           WHERE module = 'MyApp.Shapes' AND function IN ('area', 'helper', '__struct__', 'MACRO-square')
+           ORDER BY function, arity
+           """) == [
+             %{"function" => "MACRO-square", "arity" => 2, "defaults_to_arity" => nil},
+             %{"function" => "__struct__", "arity" => 0, "defaults_to_arity" => nil},
+             %{"function" => "__struct__", "arity" => 1, "defaults_to_arity" => nil},
+             %{"function" => "area", "arity" => 1, "defaults_to_arity" => 2},
+             %{"function" => "area", "arity" => 2, "defaults_to_arity" => nil},
+             %{"function" => "helper", "arity" => 1, "defaults_to_arity" => nil}
+           ]
 
     # Who calls list_orders/1? The capture and the literal apply/3 count.
     assert duckdb(out, """
@@ -185,6 +242,25 @@ defmodule FactionTest do
              %{"module" => "MyApp.Orders", "function" => "query", "arity" => 1},
              %{"module" => "MyAppWeb.OrderController", "function" => "index", "arity" => 2}
            ]
+
+    # Where is MyApp.Orders.Order used as a value? A module that is only
+    # called (MyApp.Repo) is not a reference.
+    assert %{
+             "caller_module" => "MyApp.Orders",
+             "caller_function" => "query",
+             "caller_arity" => 1,
+             "path" => "lib/my_app/orders.ex",
+             "line" => 6
+           } in duckdb(out, """
+           SELECT caller_module, caller_function, caller_arity, path, line
+           FROM module_references
+           WHERE referenced_module = 'MyApp.Orders.Order' AND caller_module <> referenced_module
+           """)
+
+    assert duckdb(
+             out,
+             "SELECT count(*) AS n FROM module_references WHERE referenced_module = 'MyApp.Repo'"
+           ) == [%{"n" => 0}]
 
     # Public application functions that nothing calls (a candidate list).
     unused =

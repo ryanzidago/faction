@@ -73,10 +73,18 @@ defmodule Faction.Tour do
 
     Every BEAM in the ebin directories is application code. --deps is read only
     to find the callbacks of behaviours from dependencies.
+
+    Test files leave no BEAMs behind, so the project compiles them itself with
+    guides/compile_tests.exs and passes the output as one more ebin directory:
+
+        MIX_ENV=test mix run --no-start path/to/compile_tests.exs
+        faction ... _build/test/lib/my_app/ebin _build/test/test_beams
+
+    The fixture's tests are in #{Fixture.test_ebin()}.
     """)
 
     summary =
-      Faction.run([Fixture.app_ebin()],
+      Faction.run([Fixture.app_ebin(), Fixture.test_ebin()],
         root: Fixture.root(),
         out: out,
         deps: [Fixture.deps_ebin()]
@@ -86,7 +94,7 @@ defmodule Faction.Tour do
 
     check!(
       "every fixture BEAM was extracted, none skipped",
-      summary.beams == 18 and summary.skipped == []
+      summary.beams == 24 and summary.skipped == []
     )
 
     check!("every declared behaviour resolved to a BEAM", summary.missing_behaviours == [])
@@ -117,15 +125,19 @@ defmodule Faction.Tour do
       "SELECT * FROM function_calls WHERE caller_module = 'MyApp.Orders' ORDER BY callee_module",
     dynamic_function_calls:
       "SELECT * FROM dynamic_function_calls WHERE caller_module = 'MyApp.Dispatch'",
+    module_references:
+      "SELECT * FROM module_references WHERE caller_module IN ('MyApp.Orders', 'MyApp.Dispatch') ORDER BY ALL",
     behaviours: "SELECT * FROM behaviours ORDER BY module",
     callbacks:
       "SELECT * FROM callbacks WHERE behaviour IN ('Oban.Worker', 'MyApp.Notifier') ORDER BY ALL",
     ecto_schemas: "SELECT * FROM ecto_schemas ORDER BY module",
     ecto_fields: "SELECT * FROM ecto_fields WHERE module = 'MyApp.Orders.Line'",
     ecto_assocs: "SELECT * FROM ecto_assocs WHERE module = 'MyApp.Orders.Order'",
+    routes: "SELECT * FROM routes WHERE router = 'MyAppWeb.Router'",
     external_functions:
       "SELECT * FROM external_functions WHERE module IN ('Phoenix.Controller', 'String') ORDER BY ALL",
-    callback_impls: "SELECT * FROM callback_impls WHERE behaviour <> 'GenServer' ORDER BY ALL"
+    callback_impls: "SELECT * FROM callback_impls WHERE behaviour <> 'GenServer' ORDER BY ALL",
+    test_modules: "SELECT * FROM test_modules ORDER BY module"
   }
 
   @spec data_model(out :: Path.t()) :: :ok
@@ -137,7 +149,8 @@ defmodule Faction.Tour do
     function is always (module, function, arity) and every relation that
     mentions one uses the same three columns, so any two relations join
     directly. Derivable facts are views, not files. The schema describes
-    itself: every table, view and column has a comment in DuckDB.
+    itself: every table, view and column has a comment in DuckDB, and
+    `FROM faction_columns` lists them all.
     """)
 
     uncommented =
@@ -162,7 +175,7 @@ defmodule Faction.Tour do
 
       show(
         out,
-        "SELECT column_name, data_type, comment FROM duckdb_columns() WHERE table_name = '#{name}'"
+        "SELECT column_name, data_type, comment FROM faction_columns WHERE table_name = '#{name}'"
       )
 
       say("Sample rows:")
@@ -230,6 +243,14 @@ defmodule Faction.Tour do
           "line" => 4
         },
         %{
+          "caller_module" => "MyApp.OrdersTest",
+          "caller_function" => "test list_orders/1 returns no orders for a new user",
+          "caller_arity" => 1,
+          "kind" => "call",
+          "path" => "test/my_app/orders_test.exs",
+          "line" => 6
+        },
+        %{
           "caller_module" => "MyAppWeb.OrderController",
           "caller_function" => "index",
           "caller_arity" => 2,
@@ -238,6 +259,29 @@ defmodule Faction.Tour do
           "line" => 4
         }
       ]
+    )
+
+    ask!(
+      out,
+      "Which tests call list_orders/1? (the tests to run after changing it)",
+      """
+      SELECT c.caller_module, c.caller_function, c.path, c.line
+      FROM function_calls c JOIN test_modules t ON t.module = c.caller_module
+      WHERE c.callee_module = 'MyApp.Orders' AND c.callee_function = 'list_orders' AND c.callee_arity = 1
+      ORDER BY ALL
+      """,
+      [
+        %{
+          "caller_module" => "MyApp.OrdersTest",
+          "caller_function" => "test list_orders/1 returns no orders for a new user",
+          "path" => "test/my_app/orders_test.exs",
+          "line" => 6
+        }
+      ]
+    )
+
+    say(
+      "A test is the function \"test <describe> <name>\"/1 of a test module; test_modules lists the test modules (those that define __ex_unit__/0, and the other modules in their files).\n"
     )
 
     ask!(
@@ -282,28 +326,82 @@ defmodule Faction.Tour do
         %{"module" => "MyApp.Dispatch", "function" => "run_known", "arity" => 1},
         %{"module" => "MyApp.Orders", "function" => "list_orders", "arity" => 1},
         %{"module" => "MyApp.Orders", "function" => "query", "arity" => 1},
+        %{
+          "module" => "MyApp.OrdersTest",
+          "function" => "test list_orders/1 returns no orders for a new user",
+          "arity" => 1
+        },
         %{"module" => "MyAppWeb.OrderController", "function" => "index", "arity" => 2}
       ]
     )
 
     ask!(
       out,
-      "Which declared public functions does nothing call? (callback implementations excluded; a candidate list, not a verdict)",
+      "Which routes reach MyAppWeb.OrderController.index/2? (a controller action is (module, action, 2))",
       """
-      SELECT f.module, f.function, f.arity FROM functions f
-      WHERE f.visibility = 'public' AND NOT f.is_generated
-        AND NOT EXISTS (SELECT 1 FROM function_calls c
-          WHERE c.callee_module = f.module AND c.callee_function = f.function AND c.callee_arity = f.arity)
-        AND NOT EXISTS (SELECT 1 FROM callback_impls i
-          WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
-        AND f.module IN ('MyApp.Orders', 'MyApp.Repo', 'MyAppWeb.OrderController', 'MyApp.Workers.Mailer')
-      ORDER BY ALL
+      SELECT r.verb, r.route, r.router FROM routes r
+      JOIN functions f ON f.module = r.module AND f.function = r.action AND f.arity = 2
+      WHERE f.module = 'MyAppWeb.OrderController' AND f.function = 'index'
       """,
-      [%{"module" => "MyAppWeb.OrderController", "function" => "index", "arity" => 2}]
+      [
+        %{"verb" => "GET", "route" => "/orders", "router" => "MyAppWeb.Router"}
+      ]
+    )
+
+    ask!(
+      out,
+      "Which declared public functions does no application code call? (one row per definition; callback implementations at any arity, routed actions, macros and test modules excluded, and calls from tests do not count; a candidate list, not a verdict)",
+      """
+      WITH arities AS (
+        SELECT f.module, f.function, f.arity, coalesce(f.defaults_to_arity, f.arity) AS definition_arity
+        FROM functions f
+        WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
+          AND NOT EXISTS (SELECT 1 FROM callback_impls i
+            JOIN functions g ON g.module = i.module AND g.function = i.function AND g.arity = i.arity
+            WHERE i.module = f.module AND i.function = f.function
+              AND coalesce(g.defaults_to_arity, g.arity) = coalesce(f.defaults_to_arity, f.arity))
+          AND NOT EXISTS (SELECT 1 FROM routes r
+            WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)
+          AND f.module NOT IN (SELECT module FROM test_modules)
+          AND f.module IN ('MyApp.Orders', 'MyApp.Repo', 'MyAppWeb.OrderController', 'MyApp.Workers.Mailer', 'MyApp.Shapes')),
+      used AS (
+        SELECT DISTINCT a.module, a.function, a.definition_arity FROM arities a
+        JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
+        JOIN functions s ON s.module = c.caller_module AND s.function = c.caller_function AND s.arity = c.caller_arity
+        WHERE NOT (s.module = a.module AND s.function = a.function
+          AND coalesce(s.defaults_to_arity, s.arity) = a.definition_arity)
+          AND s.module NOT IN (SELECT module FROM test_modules))
+      SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities
+      FROM arities a ANTI JOIN used u USING (module, function, definition_arity)
+      GROUP BY a.module, a.function, a.definition_arity ORDER BY ALL
+      """,
+      [
+        %{"module" => "MyApp.Shapes", "function" => "area", "arities" => [1, 2]}
+      ]
+    )
+
+    ask!(
+      out,
+      "Which of those do tests call? (tested, but no application code uses it)",
+      """
+      SELECT DISTINCT c.callee_module, c.callee_function, c.callee_arity, c.caller_module
+      FROM function_calls c JOIN test_modules t ON t.module = c.caller_module
+      WHERE c.callee_module = 'MyApp.Shapes' AND c.callee_function = 'area'
+      """,
+      [
+        %{
+          "callee_module" => "MyApp.Shapes",
+          "callee_function" => "area",
+          "callee_arity" => 2,
+          "caller_module" => "MyApp.ShapesTest"
+        }
+      ]
     )
 
     say(
-      "index/2 is a Phoenix action: the router calls it at runtime, which is why it is a candidate only.\n"
+      "area/1 has defaults_to_arity 2 and only calls area/2, so the definition counts once and neither arity has a real caller; MyApp.ShapesTest calls area/2, but a test is not a use.\n" <>
+        "OrderController.index/2 has no caller either, but a route reaches it, so it is not listed.\n" <>
+        "Mailer.backoff/2 has no caller either, but its default-argument arity backoff/1 implements Oban.Worker.backoff/1, so the definition is not listed.\n"
     )
 
     ask!(
@@ -324,6 +422,12 @@ defmodule Faction.Tour do
       WHERE c.behaviour = 'Oban.Worker' ORDER BY c.function
       """,
       [
+        %{
+          "function" => "backoff",
+          "arity" => 1,
+          "is_optional" => true,
+          "implemented_by" => "MyApp.Workers.Mailer"
+        },
         %{
           "function" => "perform",
           "arity" => 1,
@@ -436,6 +540,31 @@ defmodule Faction.Tour do
 
     ask!(
       out,
+      "Where is MyApp.Orders.Order used as a value (not called), outside the Ecto schemas?",
+      """
+      SELECT caller_module, caller_function, caller_arity, line FROM module_references
+      WHERE referenced_module = 'MyApp.Orders.Order'
+        AND caller_function NOT IN ('__schema__', '__struct__', '__changeset__')
+      ORDER BY ALL
+      """,
+      [
+        %{
+          "caller_module" => "MyApp.Dispatch",
+          "caller_function" => "order?",
+          "caller_arity" => 1,
+          "line" => 18
+        },
+        %{
+          "caller_module" => "MyApp.Orders",
+          "caller_function" => "query",
+          "caller_arity" => 1,
+          "line" => 6
+        }
+      ]
+    )
+
+    ask!(
+      out,
       "Which dependency functions does the app use, and how often?",
       """
       SELECT e.module, e.function, e.arity, count(*) AS calls
@@ -470,16 +599,47 @@ defmodule Faction.Tour do
 
     ask!(
       out,
-      "A default argument compiles to two arities with one range; the shorter one calls the longer.",
+      "A test is a generated function named after its describe and name, spanning its test block.",
       """
-      SELECT f.arity, f.start_line, f.end_line, c.callee_arity AS calls_arity
+      SELECT function, arity, is_generated, path, start_line, end_line FROM functions
+      WHERE module = 'MyApp.OrdersTest' AND function LIKE 'test %'
+      """,
+      [
+        %{
+          "function" => "test list_orders/1 returns no orders for a new user",
+          "arity" => 1,
+          "is_generated" => true,
+          "path" => "test/my_app/orders_test.exs",
+          "start_line" => 5,
+          "end_line" => 7
+        }
+      ]
+    )
+
+    ask!(
+      out,
+      "A default argument compiles to two arities with one range; the shorter one calls the longer and names it in defaults_to_arity.",
+      """
+      SELECT f.arity, f.defaults_to_arity, f.start_line, f.end_line, c.callee_arity AS calls_arity
       FROM functions f LEFT JOIN function_calls c
         ON c.caller_module = f.module AND c.caller_function = f.function AND c.caller_arity = f.arity AND c.callee_function = 'area'
       WHERE f.module = 'MyApp.Shapes' AND f.function = 'area' ORDER BY f.arity
       """,
       [
-        %{"arity" => 1, "start_line" => 4, "end_line" => 6, "calls_arity" => 2},
-        %{"arity" => 2, "start_line" => 4, "end_line" => 6, "calls_arity" => nil}
+        %{
+          "arity" => 1,
+          "defaults_to_arity" => 2,
+          "start_line" => 4,
+          "end_line" => 6,
+          "calls_arity" => 2
+        },
+        %{
+          "arity" => 2,
+          "defaults_to_arity" => nil,
+          "start_line" => 4,
+          "end_line" => 6,
+          "calls_arity" => nil
+        }
       ]
     )
 

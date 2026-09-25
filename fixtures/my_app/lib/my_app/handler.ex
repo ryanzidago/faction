@@ -9,4 +9,8 @@ defmodule MyApp.Handler do
   def greet(name), do: super(name) <> "!"
 
   def first_total(order_id), do: MyApp.Repo.get!(order_id).total
+
+  def handle_info(:tick, state) do
+    Map.put(state, :ticked, true)
+  end
 end
