@@ -115,6 +115,8 @@
 {"module":"MyApp.Shapes","function":"module_info","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Shapes","function":"module_info","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Workers.Mailer","function":"__info__","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
+{"module":"MyApp.Workers.Mailer","function":"backoff","arity":1,"defaults_to_arity":2,"visibility":"public","is_generated":false,"path":"lib/my_app/workers/mailer.ex","start_line":8,"end_line":8}
+{"module":"MyApp.Workers.Mailer","function":"backoff","arity":2,"defaults_to_arity":null,"visibility":"public","is_generated":false,"path":"lib/my_app/workers/mailer.ex","start_line":8,"end_line":8}
 {"module":"MyApp.Workers.Mailer","function":"module_info","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Workers.Mailer","function":"module_info","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Workers.Mailer","function":"perform","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":false,"path":"lib/my_app/workers/mailer.ex","start_line":5,"end_line":5}

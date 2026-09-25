@@ -10,6 +10,7 @@
 {"behaviour":"MyApp.Describable","function":"describe","arity":1,"is_optional":false}
 {"behaviour":"MyApp.Notifier","function":"MACRO-template","arity":2,"is_optional":false}
 {"behaviour":"MyApp.Notifier","function":"deliver","arity":1,"is_optional":false}
+{"behaviour":"Oban.Worker","function":"backoff","arity":1,"is_optional":true}
 {"behaviour":"Oban.Worker","function":"perform","arity":1,"is_optional":false}
 {"behaviour":"Oban.Worker","function":"timeout","arity":1,"is_optional":true}
 {"behaviour":"Protocol","function":"MACRO-__deriving__","arity":3,"is_optional":true}

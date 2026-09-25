@@ -305,14 +305,16 @@ defmodule Faction.Tour do
 
     ask!(
       out,
-      "Which declared public functions does nothing call? (one row per definition; callback implementations, routed actions and macros excluded; a candidate list, not a verdict)",
+      "Which declared public functions does nothing call? (one row per definition; callback implementations at any arity, routed actions and macros excluded; a candidate list, not a verdict)",
       """
       WITH arities AS (
         SELECT f.module, f.function, f.arity, coalesce(f.defaults_to_arity, f.arity) AS definition_arity
         FROM functions f
         WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
           AND NOT EXISTS (SELECT 1 FROM callback_impls i
-            WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
+            JOIN functions g ON g.module = i.module AND g.function = i.function AND g.arity = i.arity
+            WHERE i.module = f.module AND i.function = f.function
+              AND coalesce(g.defaults_to_arity, g.arity) = coalesce(f.defaults_to_arity, f.arity))
           AND NOT EXISTS (SELECT 1 FROM routes r
             WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)
           AND f.module IN ('MyApp.Orders', 'MyApp.Repo', 'MyAppWeb.OrderController', 'MyApp.Workers.Mailer', 'MyApp.Shapes')),
@@ -333,7 +335,8 @@ defmodule Faction.Tour do
 
     say(
       "area/1 has defaults_to_arity 2 and only calls area/2, so the definition counts once and neither arity has a real caller.\n" <>
-        "OrderController.index/2 has no caller either, but a route reaches it, so it is not listed.\n"
+        "OrderController.index/2 has no caller either, but a route reaches it, so it is not listed.\n" <>
+        "Mailer.backoff/2 has no caller either, but its default-argument arity backoff/1 implements Oban.Worker.backoff/1, so the definition is not listed.\n"
     )
 
     ask!(
@@ -354,6 +357,12 @@ defmodule Faction.Tour do
       WHERE c.behaviour = 'Oban.Worker' ORDER BY c.function
       """,
       [
+        %{
+          "function" => "backoff",
+          "arity" => 1,
+          "is_optional" => true,
+          "implemented_by" => "MyApp.Workers.Mailer"
+        },
         %{
           "function" => "perform",
           "arity" => 1,

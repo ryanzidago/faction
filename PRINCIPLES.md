@@ -407,7 +407,9 @@ WITH arities AS (
   FROM functions f
   WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
     AND NOT EXISTS (SELECT 1 FROM callback_impls i
-      WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
+      JOIN functions g ON g.module = i.module AND g.function = i.function AND g.arity = i.arity
+      WHERE i.module = f.module AND i.function = f.function
+        AND coalesce(g.defaults_to_arity, g.arity) = coalesce(f.defaults_to_arity, f.arity))
     AND NOT EXISTS (SELECT 1 FROM routes r
       WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)),
 used AS (
@@ -421,8 +423,9 @@ FROM arities a ANTI JOIN used u USING (module, function, definition_arity)
 GROUP BY a.module, a.function, a.definition_arity, a.path, a.start_line ORDER BY ALL;
 ```
 
-(Macros are left out because their use sites are not recorded. Callback
-implementations and controller actions a route reaches are left out.
+(Macros are left out because their use sites are not recorded. A definition
+is left out when any of its arities implements a callback, and so are
+controller actions a route reaches.
 `dynamic_function_calls`, `module_references` (a module passed as a value is
 used through its callbacks), and other framework entry points make this a
 candidate list, not a verdict. The agent decides.)
