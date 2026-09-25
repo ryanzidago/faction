@@ -110,6 +110,8 @@ defmodule Tour do
       ecto_schemas ||--o{ ecto_fields : "module"
       ecto_schemas ||--o{ ecto_assocs : "module"
       ecto_schemas |o--o{ ecto_assocs : "related_module"
+      modules ||--o{ routes : "router"
+      functions |o--o{ routes : "module, action (arity 2)"
     """
 
     Kino.Mermaid.new("erDiagram\n" <> Enum.join(tables ++ views, "\n") <> "\n" <> joins)
@@ -355,9 +357,21 @@ edges =
 Kino.Layout.grid([Tour.query(blast_radius <> "SELECT * FROM up ORDER BY ALL"), Tour.call_graph(edges)], columns: 2)
 ```
 
+### Which routes reach `OrderController.index/2`?
+
+The router calls controller actions at runtime, so no `function_calls` row points at them. `routes` does: a controller action is the function (`module`, `action`, 2).
+
+```elixir
+Tour.query("""
+SELECT r.verb, r.route, r.router FROM routes r
+JOIN functions f ON f.module = r.module AND f.function = r.action AND f.arity = 2
+WHERE f.module = 'MyAppWeb.OrderController' AND f.function = 'index'
+""")
+```
+
 ### Which public functions does nothing call?
 
-A candidate list, not a verdict. There is one row per source definition: a default-argument arity is grouped with the arity named by its `defaults_to_arity`, and calls between the two do not count as use. Callback implementations and macros (whose use sites are not recorded) are excluded. Framework entry points such as controller actions (called by the router at runtime) remain.
+A candidate list, not a verdict. There is one row per source definition: a default-argument arity is grouped with the arity named by its `defaults_to_arity`, and calls between the two do not count as use. Callback implementations, controller actions a route reaches, and macros (whose use sites are not recorded) are excluded.
 
 ```elixir
 Tour.query("""
@@ -367,7 +381,9 @@ WITH arities AS (
   FROM functions f
   WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
     AND NOT EXISTS (SELECT 1 FROM callback_impls i
-      WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)),
+      WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
+    AND NOT EXISTS (SELECT 1 FROM routes r
+      WHERE r.module = f.module AND r.action = f.function AND f.arity = 2)),
 used AS (
   SELECT DISTINCT a.module, a.function, a.definition_arity FROM arities a
   JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity

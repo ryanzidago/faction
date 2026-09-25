@@ -185,6 +185,10 @@
 {"caller_module":"MyApp.Shapes","caller_function":"__struct__","caller_arity":1,"referenced_module":"MyApp.Shapes","path":"lib/my_app/shapes.ex","line":2}
 {"caller_module":"MyApp.Shapes","caller_function":"area","caller_arity":2,"referenced_module":"MyApp.Shapes","path":"lib/my_app/shapes.ex","line":5}
 {"caller_module":"MyApp.Shapes","caller_function":"area","caller_arity":2,"referenced_module":"MyApp.Shapes","path":"lib/my_app/shapes.ex","line":6}
+{"caller_module":"MyAppWeb.Router","caller_function":"__routes__","caller_arity":0,"referenced_module":"MyAppWeb.OrderController","path":"lib/my_app_web/router.ex","line":1}
+{"caller_module":"MyAppWeb.Router","caller_function":"__routes__","caller_arity":0,"referenced_module":"Phoenix.LiveView.Plug","path":"lib/my_app_web/router.ex","line":1}
+{"caller_module":"MyAppWeb.Router","caller_function":"__routes__","caller_arity":0,"referenced_module":"MyAppWeb.DashboardLive","path":"lib/my_app_web/router.ex","line":1}
+{"caller_module":"MyAppWeb.Router","caller_function":"__routes__","caller_arity":0,"referenced_module":"MyAppWeb.AdminPlug","path":"lib/my_app_web/router.ex","line":1}
 {"caller_module":"MyAppWeb","caller_function":"MACRO-__using__","caller_arity":2,"referenced_module":"MyAppWeb","path":"lib/my_app_web.ex","line":11}
 {"caller_module":"MyAppWeb","caller_function":"controller","caller_arity":0,"referenced_module":"MyAppWeb","path":"lib/my_app_web.ex","line":3}
 {"caller_module":"MyAppWeb","caller_function":"controller","caller_arity":0,"referenced_module":"MyAppWeb","path":"lib/my_app_web.ex","line":3}

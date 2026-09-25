@@ -13,7 +13,8 @@ defmodule FactionTest do
     "callbacks",
     "ecto_schemas",
     "ecto_fields",
-    "ecto_assocs"
+    "ecto_assocs",
+    "routes"
   ]
 
   @tag :tmp_dir

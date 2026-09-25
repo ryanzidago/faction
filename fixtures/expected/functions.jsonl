@@ -128,6 +128,10 @@
 {"module":"MyAppWeb.OrderController","function":"index","arity":2,"defaults_to_arity":null,"visibility":"public","is_generated":false,"path":"lib/my_app_web/order_controller.ex","start_line":3,"end_line":6}
 {"module":"MyAppWeb.OrderController","function":"module_info","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyAppWeb.OrderController","function":"module_info","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
+{"module":"MyAppWeb.Router","function":"__info__","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
+{"module":"MyAppWeb.Router","function":"__routes__","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":"lib/my_app_web/router.ex","start_line":1,"end_line":1}
+{"module":"MyAppWeb.Router","function":"module_info","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
+{"module":"MyAppWeb.Router","function":"module_info","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyAppWeb","function":"MACRO-__using__","arity":2,"defaults_to_arity":null,"visibility":"public","is_generated":false,"path":"lib/my_app_web.ex","start_line":10,"end_line":12}
 {"module":"MyAppWeb","function":"__info__","arity":1,"defaults_to_arity":null,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyAppWeb","function":"controller","arity":0,"defaults_to_arity":null,"visibility":"public","is_generated":false,"path":"lib/my_app_web.ex","start_line":2,"end_line":8}
