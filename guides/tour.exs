@@ -137,7 +137,8 @@ defmodule Faction.Tour do
     function is always (module, function, arity) and every relation that
     mentions one uses the same three columns, so any two relations join
     directly. Derivable facts are views, not files. The schema describes
-    itself: every table, view and column has a comment in DuckDB.
+    itself: every table, view and column has a comment in DuckDB, and
+    `FROM faction_columns` lists them all.
     """)
 
     uncommented =
@@ -162,7 +163,7 @@ defmodule Faction.Tour do
 
       show(
         out,
-        "SELECT column_name, data_type, comment FROM duckdb_columns() WHERE table_name = '#{name}'"
+        "SELECT column_name, data_type, comment FROM faction_columns WHERE table_name = '#{name}'"
       )
 
       say("Sample rows:")

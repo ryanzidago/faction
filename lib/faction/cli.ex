@@ -83,7 +83,9 @@ defmodule Faction.CLI do
       Enum.map_join(summary.rows, ", ", fn {relation, count} -> "#{relation}: #{count}" end)
 
     IO.puts("#{summary.beams} BEAMs → #{counts}")
+    out = Path.expand(out)
     IO.puts("Load: cd #{out} && duckdb faction.duckdb < schema.sql")
+    IO.puts(~s(Then: duckdb #{Path.join(out, "faction.duckdb")} "FROM faction_columns"))
   end
 
   @spec usage(device :: :stdio | :stderr, status :: non_neg_integer()) :: non_neg_integer()
