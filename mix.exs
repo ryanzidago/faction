@@ -32,7 +32,7 @@ defmodule Faction.MixProject do
   end
 
   # Debug info and source parsing create atoms (~20 per BEAM on Plausible), so
-  # the escript raises the VM's atom limit for ~100k-BEAM projects.
+  # the escript raises the VM's atom limit for large projects.
   @spec escript() :: keyword()
   defp escript do
     [main_module: Faction.CLI, emu_args: "+t 16777216"]

@@ -57,8 +57,11 @@ fewer tokens and less guessing?* If not, it is cut.
 
 ## Scale target
 
-Design for a monorepo application with **~100,000 BEAM files**. At that size
-`function_calls` alone can reach tens of millions of rows, so:
+Design for one Mix application with **~10,000 BEAM files and ~3 million lines
+of application code** (tests excluded). Umbrella projects are not supported. A
+single Mix project cannot exceed 65,536 modules anyway: the VM's loaded-module
+limit stops compilation. At that size `function_calls` reaches about 2.4
+million rows (synthetic baseline), so:
 
 - **Per-BEAM extraction, no global state.** Each BEAM is read, turned into rows,
   and released. No step needs another BEAM's result, so BEAMs can be processed
@@ -74,25 +77,34 @@ Design for a monorepo application with **~100,000 BEAM files**. At that size
 - **Append-only writes.** Rows are streamed to disk as produced, never
   accumulated in a list or map before writing.
 - **Measured, not assumed.** The definition of done for each slice includes a run
-  on the 100k-BEAM project with peak memory and wall time recorded here.
+  on the synthetic baseline (`mise run synthetic`, defaults: 10k BEAMs, 3M
+  lines; see `validation/README.md`) with peak memory and wall time recorded
+  here, and on the work application when available.
 
 Measured with the escript (`faction`, VM atom limit raised to 16M) on an
 Apple Silicon laptop, 14 schedulers, Elixir 1.20.4 / OTP 29. Peak memory is
 the process's maximum resident set size, VM baseline included. The old
 Faction was not available to compare against.
 
-| Target | BEAMs | Wall time | Peak memory |
-| --- | --- | --- | --- |
-| changelog.com (rung 3) | 344 | 0.7 s | 290 MB |
-| Plausible (rung 3) | 757 | 1.1 s | 343 MB |
-| Synthetic: Credo's BEAMs × 1 | 269 | 0.5 s | 197 MB |
-| Synthetic: × 10 | 2,690 | 0.9 s | 225 MB |
-| Synthetic: × 100 | 26,900 | 4.8 s | 230 MB |
-| The ~100k-BEAM monorepo (rung 4) | ~100,000 | ? | ? |
+| Target | BEAMs | Lines | Call rows | Wall time | Peak memory |
+| --- | --- | --- | --- | --- | --- |
+| changelog.com (rung 3) | 344 | 38,943 | 40,967 | 0.7 s | 290 MB |
+| Plausible (rung 3) | 757 | 89,184 | 62,577 | 1.1 s | 343 MB |
+| Synthetic, 1/10 baseline | 1,000 | 300,000 | 256,391 | 1.1–1.5 s | 871–969 MB |
+| Synthetic baseline | 10,000 | 3,000,000 | 2,367,721 | 5.4–7.6 s | 1.09–1.14 GB |
+| The work application (rung 4) | ~10,000 | ~3,000,000 | ? | ? | ? |
 
-Memory stays flat as BEAM count grows; wall time is linear (~0.2 ms per BEAM
-on the synthetic run). Debug info and source parsing create atoms (about 20
-per BEAM on Plausible), which is why the escript raises the atom limit.
+Lines are every source line that compiles into the app's BEAMs, templates
+included (Plausible: `lib/` and `extra/lib/`). The synthetic app is built from
+Phoenix's own generators and grown to the flags (see `validation/README.md`).
+Its code is as dense as the real apps': per 1,000 lines it has 789 call rows
+and 170 functions, between Plausible (687, 115) and changelog.com (1,052, 195).
+
+Wall time is about 2–2.5 s per million lines. Peak memory is not flat: 10×
+the code costs about 1.2× the memory, and the same input varies by up to 10–20%
+between runs (both synthetic sizes have the same ~10,700-line largest module).
+Debug info and source parsing create atoms (about 20 per BEAM on Plausible),
+which is why the escript raises the atom limit.
 
 ## Output
 
@@ -368,11 +380,12 @@ the current one is boringly correct.
 | 1 | Tiny fixture app (the example above) | Correctness: every relation matches hand-written expected output; every example query returns the expected rows. This rung defines "correct" for all others. |
 | 2 | A small open source library | Real compiler output: macros, `use`, generated functions, captures, protocols, behaviours. |
 | 3 | Plausible, changelog.com | Realistic app shape: Ecto, Phoenix, LiveView, many dependencies. First real time and memory measurements, compared against the old Faction. |
-| 4 | The ~100k-BEAM monorepo application | Scale: does the streaming design hold. Run only once rung 3 is boring. |
+| 4 | The work application (~10k BEAMs, ~3M lines) | Scale: does the streaming design hold. Run only once rung 3 is boring. |
 
-Scale sanity check at rung 3: also run on a synthetic project (many trivial
-modules, or replicated BEAMs) at increasing file counts and confirm peak memory
-stays flat. This checks the scaling behaviour without waiting on the monorepo.
+Scale check at rung 3, without waiting on the work application: generate the
+synthetic app (`validation/synthetic_app.exs`) at 1/10 of the baseline and at
+the full baseline, record both in the Scale target table, and check its oracle
+(`validation/check_synthetic.sql`): every difference must be zero.
 
 ## Verification
 
