@@ -291,22 +291,34 @@ defmodule Faction.Tour do
 
     ask!(
       out,
-      "Which declared public functions does nothing call? (callback implementations excluded; a candidate list, not a verdict)",
+      "Which declared public functions does nothing call? (one row per definition; callback implementations and macros excluded; a candidate list, not a verdict)",
       """
-      SELECT f.module, f.function, f.arity FROM functions f
-      WHERE f.visibility = 'public' AND NOT f.is_generated
-        AND NOT EXISTS (SELECT 1 FROM function_calls c
-          WHERE c.callee_module = f.module AND c.callee_function = f.function AND c.callee_arity = f.arity)
-        AND NOT EXISTS (SELECT 1 FROM callback_impls i
-          WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
-        AND f.module IN ('MyApp.Orders', 'MyApp.Repo', 'MyAppWeb.OrderController', 'MyApp.Workers.Mailer')
-      ORDER BY ALL
+      WITH arities AS (
+        SELECT f.module, f.function, f.arity, f.start_line FROM functions f
+        WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
+          AND NOT EXISTS (SELECT 1 FROM callback_impls i
+            WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
+          AND f.module IN ('MyApp.Orders', 'MyApp.Repo', 'MyAppWeb.OrderController', 'MyApp.Workers.Mailer', 'MyApp.Shapes')),
+      used AS (
+        SELECT DISTINCT a.module, a.function, a.start_line FROM arities a
+        JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
+        WHERE NOT EXISTS (SELECT 1 FROM arities s
+          WHERE s.module = c.caller_module AND s.function = c.caller_function
+            AND s.arity = c.caller_arity AND s.start_line = a.start_line))
+      SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities
+      FROM arities a ANTI JOIN used u
+        ON u.module = a.module AND u.function = a.function AND u.start_line IS NOT DISTINCT FROM a.start_line
+      GROUP BY a.module, a.function, a.start_line ORDER BY ALL
       """,
-      [%{"module" => "MyAppWeb.OrderController", "function" => "index", "arity" => 2}]
+      [
+        %{"module" => "MyApp.Shapes", "function" => "area", "arities" => [1, 2]},
+        %{"module" => "MyAppWeb.OrderController", "function" => "index", "arities" => [2]}
+      ]
     )
 
     say(
-      "index/2 is a Phoenix action: the router calls it at runtime, which is why it is a candidate only.\n"
+      "area/1 only calls area/2 (its default argument), so the definition counts once and neither arity has a real caller.\n" <>
+        "index/2 is a Phoenix action: the router calls it at runtime, which is why it is a candidate only.\n"
     )
 
     ask!(

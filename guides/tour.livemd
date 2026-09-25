@@ -357,18 +357,25 @@ Kino.Layout.grid([Tour.query(blast_radius <> "SELECT * FROM up ORDER BY ALL"), T
 
 ### Which public functions does nothing call?
 
-A candidate list, not a verdict: callback implementations are excluded, and framework entry points such as controller actions (called by the router at runtime) remain.
+A candidate list, not a verdict. There is one row per source definition: default-argument arities share a `start_line`, and the shorter arity's call to the longer one does not count as use. Callback implementations and macros (whose use sites are not recorded) are excluded. Framework entry points such as controller actions (called by the router at runtime) remain.
 
 ```elixir
 Tour.query("""
-SELECT f.module, f.function, f.arity, f.path, f.start_line
-FROM functions f
-WHERE f.visibility = 'public' AND NOT f.is_generated
-  AND NOT EXISTS (SELECT 1 FROM function_calls c
-    WHERE c.callee_module = f.module AND c.callee_function = f.function AND c.callee_arity = f.arity)
-  AND NOT EXISTS (SELECT 1 FROM callback_impls i
-    WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)
-ORDER BY ALL
+WITH arities AS (
+  SELECT f.module, f.function, f.arity, f.path, f.start_line FROM functions f
+  WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
+    AND NOT EXISTS (SELECT 1 FROM callback_impls i
+      WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)),
+used AS (
+  SELECT DISTINCT a.module, a.function, a.start_line FROM arities a
+  JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
+  WHERE NOT EXISTS (SELECT 1 FROM arities s
+    WHERE s.module = c.caller_module AND s.function = c.caller_function
+      AND s.arity = c.caller_arity AND s.start_line = a.start_line))
+SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities, a.path, a.start_line
+FROM arities a ANTI JOIN used u
+  ON u.module = a.module AND u.function = a.function AND u.start_line IS NOT DISTINCT FROM a.start_line
+GROUP BY ALL ORDER BY ALL
 """)
 ```
 

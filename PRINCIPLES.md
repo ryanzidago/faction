@@ -370,18 +370,30 @@ WITH RECURSIVE up(module, function, arity) AS (
 SELECT * FROM up;
 ```
 
-Public application functions that nothing calls:
+Public application functions that nothing calls, one row per source
+definition (default-argument arities share a `start_line`, and the shorter one's
+call to the longer one does not count as use):
 
 ```sql
-SELECT f.module, f.function, f.arity, f.path, f.start_line
-FROM functions f
-WHERE f.visibility = 'public'
-  AND NOT EXISTS (
-    SELECT 1 FROM function_calls c
-    WHERE c.callee_module = f.module AND c.callee_function = f.function AND c.callee_arity = f.arity);
+WITH arities AS (
+  SELECT f.module, f.function, f.arity, f.path, f.start_line FROM functions f
+  WHERE f.visibility = 'public' AND NOT f.is_generated AND f.function NOT LIKE 'MACRO-%'
+    AND NOT EXISTS (SELECT 1 FROM callback_impls i
+      WHERE i.module = f.module AND i.function = f.function AND i.arity = f.arity)),
+used AS (
+  SELECT DISTINCT a.module, a.function, a.start_line FROM arities a
+  JOIN function_calls c ON c.callee_module = a.module AND c.callee_function = a.function AND c.callee_arity = a.arity
+  WHERE NOT EXISTS (SELECT 1 FROM arities s
+    WHERE s.module = c.caller_module AND s.function = c.caller_function
+      AND s.arity = c.caller_arity AND s.start_line = a.start_line))
+SELECT a.module, a.function, list(a.arity ORDER BY a.arity) AS arities, a.path, a.start_line
+FROM arities a ANTI JOIN used u
+  ON u.module = a.module AND u.function = a.function AND u.start_line IS NOT DISTINCT FROM a.start_line
+GROUP BY ALL ORDER BY ALL;
 ```
 
-(Callback implementations, `dynamic_function_calls`, `module_references` (a
+(Macros are left out because their use sites are not recorded. Callback
+implementations are left out. `dynamic_function_calls`, `module_references` (a
 module passed as a value is used through its callbacks), and framework entry
 points make this a candidate list, not a verdict. The agent decides.)
 
