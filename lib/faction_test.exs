@@ -152,6 +152,20 @@ defmodule FactionTest do
            WHERE module = 'MyApp.Orders' AND function = 'list_orders' AND arity = 1
            """) == [%{"path" => "lib/my_app/orders.ex", "start_line" => 2, "end_line" => 4}]
 
+    # Which arities come from default arguments, and which arity do they default to?
+    assert duckdb(out, """
+           SELECT function, arity, defaults_to_arity FROM functions
+           WHERE module = 'MyApp.Shapes' AND function IN ('area', 'helper', '__struct__', 'MACRO-square')
+           ORDER BY function, arity
+           """) == [
+             %{"function" => "MACRO-square", "arity" => 2, "defaults_to_arity" => nil},
+             %{"function" => "__struct__", "arity" => 0, "defaults_to_arity" => nil},
+             %{"function" => "__struct__", "arity" => 1, "defaults_to_arity" => nil},
+             %{"function" => "area", "arity" => 1, "defaults_to_arity" => 2},
+             %{"function" => "area", "arity" => 2, "defaults_to_arity" => nil},
+             %{"function" => "helper", "arity" => 1, "defaults_to_arity" => nil}
+           ]
+
     # Who calls list_orders/1? The capture and the literal apply/3 count.
     assert duckdb(out, """
            SELECT caller_module, caller_function, caller_arity, kind, path, line
