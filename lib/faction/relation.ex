@@ -50,9 +50,9 @@ defmodule Faction.Relation do
           {:path, "VARCHAR",
            "Source file relative to the repository root. NULL when the function has no source location or the module's source lies outside the repository."},
           {:start_line, "INTEGER",
-           "First line of the definition, over all clauses. For generated functions, the line of the code that generated them (e.g. the use line). NULL when path is NULL."},
+           "First line of the definition, over its declared clauses. For generated functions, the line of the code that generated them (e.g. the use line). NULL when path is NULL."},
           {:end_line, "INTEGER",
-           "Last line of the definition, over all clauses. NULL when path is NULL or the source file cannot be read."}
+           "Last line of the definition, over its declared clauses. NULL when path is NULL or the source file cannot be read."}
         ]
       },
       %__MODULE__{
@@ -76,7 +76,7 @@ defmodule Faction.Relation do
           {:path, "VARCHAR",
            "Source file of the call site relative to the repository root. For code injected with quote location: :keep, the file of the quote. NULL when that file lies outside the repository."},
           {:line, "INTEGER",
-           "Line of the call site. NULL when path is NULL or the compiler recorded no line."}
+           "Line of the call site; the head of its clause when the compiler recorded no line. NULL when path is NULL."}
         ]
       },
       %__MODULE__{
@@ -97,7 +97,7 @@ defmodule Faction.Relation do
           {:path, "VARCHAR",
            "Source file of the call site relative to the repository root. NULL outside the repository."},
           {:line, "INTEGER",
-           "Line of the call site. NULL when path is NULL or the compiler recorded no line."}
+           "Line of the call site; the head of its clause when the compiler recorded no line. NULL when path is NULL."}
         ]
       },
       %__MODULE__{

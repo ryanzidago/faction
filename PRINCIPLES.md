@@ -178,6 +178,12 @@ data model must state explicitly:
 - **Dependency source under the root** (`deps/`, `_build/`) is not
   application source: a module a dependency defines on the app's behalf (e.g.
   `NimbleCSV.define/2`) has NULL location and is generated.
+- **Calls in generated code are located at their clause** when the compiler
+  records no line for them, as for the plugs of a Phoenix `pipeline` (all at
+  the `pipeline` line) or the `Enum.reduce/3` in `__struct__/1` (at
+  `defstruct`). Where a macro records a misleading line, Faction keeps it:
+  routes declared with Phoenix's `resources` carry the router's `use` line,
+  because that is the line Phoenix records for them.
 - **Calls made only at compile time** (module bodies, attributes, macro
   expansion) are not in the BEAM and are not recorded.
 
