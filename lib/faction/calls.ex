@@ -12,8 +12,8 @@ defmodule Faction.Calls do
   @typedoc "Where a call appears: {path, line}. Both are nil when the location is not reported."
   @type location() :: {String.t() | nil, pos_integer() | nil}
 
-  @typedoc "Maps the metadata of a definition and of a call in it to the call's location."
-  @type locate() :: (keyword(), keyword() -> location())
+  @typedoc "Maps the metadata of a definition, of a clause and of a call in it to the call's location."
+  @type locate() :: (keyword(), keyword(), keyword() -> location())
 
   @doc """
   Returns `{function_calls, dynamic_function_calls}` rows for a module, in
@@ -35,17 +35,17 @@ defmodule Faction.Calls do
       |> Enum.reduce({[], []}, fn {{function, arity}, meta, clauses}, acc ->
         caller = %{caller_module: module, caller_function: function, caller_arity: arity}
 
-        context = %{
-          module: beam.module,
-          locals: locals,
-          caller: caller,
-          locate: &locate.(meta, &1)
-        }
-
         # Clauses are {meta, args, guards, body}; only their parts are AST.
-        clauses
-        |> Enum.map(fn {_meta, args, guards, body} -> [args, guards, body] end)
-        |> walk(context, acc)
+        Enum.reduce(clauses, acc, fn {clause_meta, args, guards, body}, acc ->
+          context = %{
+            module: beam.module,
+            locals: locals,
+            caller: caller,
+            locate: &locate.(meta, clause_meta, &1)
+          }
+
+          walk([args, guards, body], context, acc)
+        end)
       end)
 
     {Enum.reverse(calls), Enum.reverse(dynamic_calls)}

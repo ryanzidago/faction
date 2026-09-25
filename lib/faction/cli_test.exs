@@ -21,7 +21,7 @@ defmodule Faction.CLITest do
                ]) == 0
       end)
 
-    assert output =~ "19 BEAMs"
+    assert output =~ "20 BEAMs"
     assert output =~ "duckdb faction.duckdb < schema.sql"
     assert File.exists?(Path.join(out, "schema.sql"))
   end

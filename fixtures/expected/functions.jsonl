@@ -116,6 +116,11 @@
 {"module":"MyApp.Workers.Mailer","function":"module_info","arity":0,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Workers.Mailer","function":"module_info","arity":1,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyApp.Workers.Mailer","function":"perform","arity":1,"visibility":"public","is_generated":false,"path":"lib/my_app/workers/mailer.ex","start_line":5,"end_line":5}
+{"module":"MyAppWeb.Components","function":"__info__","arity":1,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
+{"module":"MyAppWeb.Components","function":"button","arity":1,"visibility":"public","is_generated":false,"path":"lib/my_app_web/components.ex","start_line":6,"end_line":8}
+{"module":"MyAppWeb.Components","function":"button (overridable 1)","arity":1,"visibility":"private","is_generated":false,"path":"lib/my_app_web/components.ex","start_line":6,"end_line":8}
+{"module":"MyAppWeb.Components","function":"module_info","arity":0,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
+{"module":"MyAppWeb.Components","function":"module_info","arity":1,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyAppWeb.OrderController","function":"__info__","arity":1,"visibility":"public","is_generated":true,"path":null,"start_line":null,"end_line":null}
 {"module":"MyAppWeb.OrderController","function":"controller?","arity":0,"visibility":"public","is_generated":true,"path":"lib/my_app_web/order_controller.ex","start_line":2,"end_line":2}
 {"module":"MyAppWeb.OrderController","function":"index","arity":2,"visibility":"public","is_generated":false,"path":"lib/my_app_web/order_controller.ex","start_line":3,"end_line":6}
