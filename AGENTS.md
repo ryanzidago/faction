@@ -13,6 +13,7 @@ Tour the API, data model and example queries with `mise run tour:livebook` (inte
 - Prefer merge over rebase; merging is simpler.
 - Run `mise run qa` (`mix precommit`) when a change is done.
 - Faction never loads or compiles the target project; it reads BEAM files only. DuckDB is the query interface; Faction itself has no DuckDB dependency.
+- Faction explicitly does not support umbrella apps and is not optimised for them.
 - Tests live next to the code in `lib/` (`foo_test.exs`); no `setup` or `describe`, no `Process.sleep`.
 - Every `def` and `defp` has a `@spec`.
 - Pre-release: no backward compatibility. Change shapes directly instead of adding shims.
