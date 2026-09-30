@@ -39,6 +39,43 @@ duckdb faction.duckdb < schema.sql
 duckdb faction.duckdb
 ```
 
+## Data model
+
+`schema.sql` loads each JSONL relation into a typed DuckDB table: one row per
+fact, with scalar columns that can be filtered and joined directly.
+
+| Table | What it stores |
+| --- | --- |
+| `modules` | Application modules, generated status, and source file/line ranges. |
+| `functions` | Functions by module, name, and arity; visibility, generated status, default-argument target arity, and source locations. |
+| `function_calls` | Each resolved call or capture: caller, callee, kind, and source location. |
+| `dynamic_function_calls` | Unresolved call sites: caller, location, and callee name/arity when known. |
+| `module_references` | Literal Elixir modules used as values inside functions, with caller and location. |
+| `behaviours` | Behaviours declared by each application module, including protocol implementations. |
+| `callbacks` | Behaviour contracts: callback name, arity, and whether it is optional, including contracts from dependencies. |
+| `ecto_schemas` | Ecto schema modules and database table names; embedded schemas have no table name. |
+| `ecto_fields` | Persisted schema fields, their types, and primary-key status. Virtual fields are excluded. |
+| `ecto_assocs` | Associations and embeds: name, kind, and related schema when known. |
+| `routes` | Phoenix routes: router, HTTP verb, path pattern, route kind, destination module, and action. |
+
+Functions share the identity `(module, function, arity)`. Calls use the same
+three columns with `caller_` and `callee_` prefixes, making joins straightforward.
+`modules` and `functions` inventory the supplied application BEAMs, including
+tests when supplied; calls may also point to dependencies, Elixir, or Erlang.
+
+DuckDB also exposes derived views:
+
+| View | What it answers |
+| --- | --- |
+| `external_functions` | Which called functions are absent from the application inventory? |
+| `callback_impls` | Which application functions fulfil declared behaviour callbacks? |
+| `test_modules` | Which modules contain ExUnit tests or are defined in the same source files? |
+| `faction_columns` | What tables/views and columns exist, with their types and explanatory comments? |
+
+Source paths are relative to the repository root. Missing facts, such as an
+unavailable source location, use `NULL`. Change impact and other derived answers
+are computed with queries over these relations.
+
 ## Example questions
 
 Run these queries in DuckDB. The `MyApp` names come from the
